@@ -1,0 +1,51 @@
+# DevAssist Blueprint Configuration
+# Full-stack development assistant with specialized agents
+
+name: DevAssist
+slug: devassist
+description: Full-stack development assistant with specialized agents for Kubernetes, Terraform, Python, Frontend, and Architecture
+
+theme:
+  primary_color: blue
+  accent_color: indigo
+
+agents:
+  - supervisor
+  - kubernetes
+  - terraform
+  - python
+  - frontend
+  - architect
+
+default_agent: supervisor
+
+supervisor:
+  enabled: true
+  mode: SUPERVISOR_ROUTER
+  instructions: |
+    You are the DevAssist supervisor. Analyze user queries and route them
+    to the most appropriate specialist agent. If unclear, ask for clarification
+    or consult the Architect agent for guidance.
+
+knowledge_base:
+  enabled: true
+  vector_store: pgvector
+  embedding_model: nomic-embed-text
+  chunk_size: 512
+  chunk_overlap: 50
+
+api:
+  port: 8001
+  rate_limit: 100
+
+storage:
+  sessions:
+    type: dynamodb
+    ttl_days: 7
+  history:
+    type: dynamodb
+    ttl_days: 30
+  documents:
+    type: s3
+  knowledge:
+    type: s3

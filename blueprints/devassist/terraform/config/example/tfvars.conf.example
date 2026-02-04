@@ -1,0 +1,19 @@
+# Example Terraform Variables Configuration
+# Copy to config/<env>/tfvars.conf and customize
+
+blueprint_name = "devassist"
+environment    = "local"
+
+# LocalStack Configuration
+localstack_endpoint = "http://localstack.local"
+aws_region          = "us-east-1"
+
+# Kubernetes Configuration
+kube_context         = "kind-dev-services-amer"
+monitoring_namespace = "monitoring"
+app_namespace        = "default"
+
+# Application Configuration
+metrics_port     = 8001
+enable_dashboard = true
+enable_cors      = true
