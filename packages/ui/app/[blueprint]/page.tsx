@@ -5,6 +5,8 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -213,7 +215,35 @@ export default function ChatPage() {
                   </Badge>
                 )}
                 <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({ node, inline, className, children, ...props }: any) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        const language = match ? match[1] : '';
+                        
+                        return !inline && language ? (
+                          <SyntaxHighlighter
+                            style={vscDarkPlus}
+                            language={language}
+                            PreTag="div"
+                            customStyle={{
+                              margin: '1em 0',
+                              borderRadius: '0.5rem',
+                              fontSize: '0.875rem',
+                            }}
+                            {...props}
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        ) : (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
                     {message.content}
                   </ReactMarkdown>
                 </div>
