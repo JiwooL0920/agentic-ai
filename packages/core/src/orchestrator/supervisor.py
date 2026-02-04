@@ -19,6 +19,7 @@ from agent_squad.types import ConversationMessage
 from ollama import AsyncClient
 
 from ..agents.base import OllamaAgent
+from .agent_state import get_agent_state_manager
 
 logger = structlog.get_logger()
 
@@ -56,8 +57,7 @@ Instructions:
 3. Consider the agent's expertise and the query's domain
 4. Respond with ONLY the exact agent name from the list above (e.g., "KubernetesExpert", "PythonExpert", etc.)
 5. If the query is about system architecture, design patterns, or general engineering decisions, route to "SystemArchitect"
-6. If the query is a greeting or general conversation, route to "SystemArchitect" as it can handle general interactions
-7. Do NOT respond with multiple agents - choose the single BEST match
+6. Do NOT respond with multiple agents - choose the single BEST match
 
 Your response (agent name only):"""
 
@@ -266,12 +266,16 @@ Analyze this query and decide your response strategy."""
         user_id: str,
         session_id: str,
         chat_history: Optional[List] = None,
+        blueprint: Optional[str] = None,
     ) -> AsyncIterable[Dict[str, Any]]:
         """
         Process query through supervisor agent.
         
-        The supervisor analyzes the query, selects the appropriate specialist,
-        and returns the specialist's response (not the supervisor's routing decision).
+        The supervisor first determines if it should:
+        1. Answer directly (greetings, general questions, clarifications)
+        2. Route to a specialist (technical questions requiring expertise)
+        
+        Only routes to ENABLED agents for this session.
         """
         logger.info(
             "processing_query_streaming",
@@ -280,10 +284,30 @@ Analyze this query and decide your response strategy."""
         )
 
         try:
+            # Get only enabled agents for this session
+            state_manager = get_agent_state_manager()
+            agents_lower = {name.lower(): agent for name, agent in self.agents.items()}
+            
+            if blueprint:
+                agents_lower = state_manager.get_enabled_agents(
+                    session_id, blueprint, agents_lower
+                )
+            
+            if not agents_lower:
+                yield {"type": "error", "error": "No agents available. Please enable at least one agent."}
+                return
+            
+            logger.info("enabled_agents", count=len(agents_lower), agents=list(agents_lower.keys()))
+            
+            # Filter collaborators to only enabled agents (exclude supervisor)
+            enabled_collaborators = {
+                k: v for k, v in agents_lower.items() 
+                if k != "supervisor"
+            }
+            
             if not self.supervisor_agent:
-                # Fallback to classifier-based routing
-                agents_lower = {name.lower(): agent for name, agent in self.agents.items()}
-                classifier = OllamaSupervisorClassifier(agents_lower, model_id="qwen2.5:7b")
+                # Fallback to classifier-based routing with ENABLED agents only
+                classifier = OllamaSupervisorClassifier(enabled_collaborators, model_id="qwen2.5:7b")
                 classifier_result = await classifier.process_request(
                     input_text=query,
                     chat_history=chat_history or [],
@@ -330,21 +354,72 @@ Analyze this query and decide your response strategy."""
                 yield {"type": "done"}
                 return
             
-            # Step 1: Check if user explicitly requested a specific agent
-            query_lower = query.lower()
+            # Step 1: Check if supervisor should answer directly (greetings, general questions)
+            query_lower = query.lower().strip()
+            
+            # Simple greetings and general queries that don't need specialist routing
+            supervisor_patterns = [
+                "hello", "hi", "hey", "good morning", "good afternoon", "good evening",
+                "how are you", "what can you do", "help", "what agents", "list agents",
+                "available agents", "who are you", "what is this", "thanks", "thank you"
+            ]
+            
+            should_supervisor_answer = any(pattern in query_lower for pattern in supervisor_patterns)
+            
+            if should_supervisor_answer:
+                logger.info("supervisor_answering_directly", query=query[:50])
+                
+                yield {
+                    "type": "metadata",
+                    "agent": self.supervisor_agent.name,
+                    "session_id": session_id,
+                }
+                
+                # Build context about available specialists
+                collaborator_context = "\nAvailable specialist agents:\n"
+                for name, agent in enabled_collaborators.items():
+                    collaborator_context += f"- {agent.name}: {agent.description}\n"
+                
+                enhanced_query = f"""{collaborator_context}
+
+User Query: {query}
+
+You are the Supervisor agent. Answer this query directly in a friendly, helpful manner. If it's a greeting, respond warmly and let them know you can help with various tasks. If they ask what you can do, briefly explain the available specialists and that you can route their questions appropriately."""
+                
+                response = await self.supervisor_agent.process_request(
+                    input_text=enhanced_query,
+                    user_id=user_id,
+                    session_id=session_id,
+                    chat_history=[],
+                    additional_params={},
+                )
+                
+                if hasattr(response, "__aiter__"):
+                    async for chunk in response:
+                        yield {"type": "content", "content": chunk}
+                else:
+                    content = ""
+                    if hasattr(response, 'content') and response.content:
+                        content = response.content[0].get("text", "")
+                    yield {"type": "content", "content": content}
+
+                yield {"type": "done"}
+                return
+            
+            # Step 2: Check if user explicitly requested a specific agent
             explicit_agent = None
             
-            # Check for explicit agent requests
+            # Check for explicit agent requests (only from enabled agents)
             if any(word in query_lower for word in ["kubernetes expert", "kubernetesexpert", "k8s expert"]):
-                explicit_agent = self.collaborators.get("kubernetesexpert")
+                explicit_agent = agents_lower.get("kubernetesexpert")
             elif any(word in query_lower for word in ["terraform expert", "terraformexpert", "iac expert"]):
-                explicit_agent = self.collaborators.get("terraformexpert")
+                explicit_agent = agents_lower.get("terraformexpert")
             elif any(word in query_lower for word in ["python expert", "pythonexpert"]):
-                explicit_agent = self.collaborators.get("pythonexpert")
+                explicit_agent = agents_lower.get("pythonexpert")
             elif any(word in query_lower for word in ["frontend expert", "frontendexpert", "react expert"]):
-                explicit_agent = self.collaborators.get("frontendexpert")
+                explicit_agent = agents_lower.get("frontendexpert")
             elif any(word in query_lower for word in ["architect", "systemarchitect", "system architect"]):
-                explicit_agent = self.collaborators.get("systemarchitect")
+                explicit_agent = agents_lower.get("systemarchitect")
             
             if explicit_agent:
                 logger.info("explicit_agent_request", agent=explicit_agent.name)
@@ -375,10 +450,15 @@ Analyze this query and decide your response strategy."""
                 yield {"type": "done"}
                 return
             
-            # Step 2: Use classifier for intelligent routing (more reliable than supervisor LLM call)
-            logger.info("using_classifier_for_routing")
+            # Step 3: Use classifier for intelligent routing (more reliable than supervisor LLM call)
+            # Use ONLY enabled collaborators for routing
+            logger.info("using_classifier_for_routing", enabled_count=len(enabled_collaborators))
             
-            classifier = OllamaSupervisorClassifier(self.collaborators, model_id="qwen2.5:7b")
+            if not enabled_collaborators:
+                yield {"type": "error", "error": "No collaborator agents available. Please enable at least one specialist agent."}
+                return
+            
+            classifier = OllamaSupervisorClassifier(enabled_collaborators, model_id="qwen2.5:7b")
             classifier_result = await classifier.process_request(
                 input_text=query,
                 chat_history=chat_history or [],
@@ -388,7 +468,7 @@ Analyze this query and decide your response strategy."""
             
             if not selected_agent:
                 logger.warning("classifier_no_agent")
-                selected_agent = self.collaborators.get("systemarchitect")
+                selected_agent = enabled_collaborators.get("systemarchitect")
             
             if not selected_agent:
                 yield {"type": "error", "error": "No suitable agent found"}
@@ -399,14 +479,14 @@ Analyze this query and decide your response strategy."""
                        agent=agent_name, 
                        confidence=classifier_result.confidence)
             
-            # Step 3: Yield metadata showing which specialist is responding
+            # Step 4: Yield metadata showing which specialist is responding
             yield {
                 "type": "metadata",
                 "agent": agent_name,
                 "session_id": session_id,
             }
             
-            # Step 4: Get actual response from the specialist agent
+            # Step 5: Get actual response from the specialist agent
             response = await selected_agent.process_request(
                 input_text=query,
                 user_id=user_id,
@@ -415,7 +495,7 @@ Analyze this query and decide your response strategy."""
                 additional_params={},
             )
 
-            # Step 5: Stream the specialist's response
+            # Step 6: Stream the specialist's response
             if hasattr(response, "__aiter__"):
                 async for chunk in response:
                     yield {

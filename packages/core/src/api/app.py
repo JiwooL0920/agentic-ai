@@ -15,7 +15,7 @@ from prometheus_client import make_asgi_app
 
 from ..agents.registry import AgentRegistry
 from ..config import get_settings
-from .routes import blueprints, chat, health
+from .routes import agents, blueprints, chat, health
 
 logger = structlog.get_logger()
 
@@ -70,7 +70,12 @@ def create_app() -> FastAPI:
     # CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:3001",
+            "http://127.0.0.1:3001",
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -83,6 +88,7 @@ def create_app() -> FastAPI:
     # Include routers
     app.include_router(health.router, tags=["Health"])
     app.include_router(blueprints.router, prefix="/api", tags=["Blueprints"])
+    app.include_router(agents.router, prefix="/api", tags=["Agents"])
     app.include_router(chat.router, prefix="/api", tags=["Chat"])
 
     return app

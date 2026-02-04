@@ -106,6 +106,7 @@ async def chat_stream(
                 query=chat_request.message,
                 user_id=user_id,
                 session_id=session_id,
+                blueprint=blueprint,
             ):
                 yield {
                     "event": chunk.get("type", "message"),

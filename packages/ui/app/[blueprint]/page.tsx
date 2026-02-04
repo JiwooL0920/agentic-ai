@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { AgentManager } from '@/components/agent-manager';
 
 interface Message {
   id: string;
@@ -51,10 +52,12 @@ export default function ChatPage() {
     setInput('');
     setIsLoading(true);
 
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+
     try {
       // Use streaming endpoint
       const response = await fetch(
-        `${process.env.API_URL}/api/blueprints/${blueprint}/chat/stream`,
+        `${apiUrl}/api/blueprints/${blueprint}/chat/stream`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -118,7 +121,7 @@ export default function ChatPage() {
       // Fallback to non-streaming
       try {
         const response = await fetch(
-          `${process.env.API_URL}/api/blueprints/${blueprint}/chat`,
+          `${apiUrl}/api/blueprints/${blueprint}/chat`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -161,18 +164,21 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
-      <header className="border-b px-4 py-3 flex items-center gap-4">
-        <Link href="/">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="font-semibold capitalize">{blueprint}</h1>
-          <p className="text-sm text-muted-foreground">
-            Chat with specialized AI agents
-          </p>
+      <header className="border-b px-4 py-3 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="font-semibold capitalize">{blueprint}</h1>
+            <p className="text-sm text-muted-foreground">
+              Chat with specialized AI agents
+            </p>
+          </div>
         </div>
+        <AgentManager blueprint={blueprint} sessionId={sessionId} />
       </header>
 
       {/* Messages */}
