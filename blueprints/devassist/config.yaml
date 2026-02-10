@@ -3,7 +3,7 @@
 
 name: DevAssist
 slug: devassist
-description: Full-stack development assistant with specialized agents for Kubernetes, Terraform, Python, Frontend, and Architecture
+description: Full-stack development assistant with specialized agents for Kubernetes, Terraform, AWS, Python, Frontend, and Architecture
 
 theme:
   primary_color: blue
@@ -13,6 +13,7 @@ agents:
   - supervisor
   - kubernetes
   - terraform
+  - aws
   - python
   - frontend
   - architect
