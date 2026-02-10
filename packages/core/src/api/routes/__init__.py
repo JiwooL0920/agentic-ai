@@ -1,5 +1,5 @@
 """API route modules."""
 
-from . import blueprints, chat, health, agents, sessions
+from . import agents, blueprints, chat, health, sessions
 
 __all__ = ["health", "blueprints", "chat", "agents", "sessions"]

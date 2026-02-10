@@ -1,7 +1,6 @@
 """Application configuration using Pydantic Settings."""
 
 from functools import lru_cache
-from typing import List, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -51,7 +50,7 @@ class Settings(BaseSettings):
     # SECURITY: Set REDIS_PASSWORD environment variable in production
     redis_host: str = "redis-sentinel.redis-sentinel"
     redis_port: int = 6379
-    redis_password: Optional[str] = None
+    redis_password: str | None = None
 
     # Session Management
     session_cache_ttl: int = 3600  # 1 hour
@@ -61,7 +60,7 @@ class Settings(BaseSettings):
     context_window_summary: int = 5
 
     # CORS
-    cors_origins: List[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:3000"]
 
     @property
     def postgres_url(self) -> str:

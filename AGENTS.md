@@ -427,6 +427,84 @@ class SupervisorOrchestrator:
         pass
 ```
 
+### 4. Clean Architecture (Backend)
+
+The backend follows a layered architecture with clear separation of concerns:
+
+```
+packages/core/src/
+├── api/                      # Presentation Layer
+│   ├── app.py               # FastAPI application factory
+│   ├── dependencies/        # Dependency injection
+│   │   ├── auth.py         # User authentication (CurrentUser)
+│   │   └── registry.py     # Agent registry injection
+│   └── routes/             # HTTP route handlers
+│       ├── agents.py
+│       ├── blueprints.py
+│       ├── chat.py
+│       └── sessions.py
+│
+├── schemas/                  # Data Transfer Objects (DTOs)
+│   ├── common.py           # StreamChunk, QueryResult, ToolInfo
+│   ├── chat.py             # ChatRequest, ChatResponse
+│   ├── sessions.py         # Session-related models
+│   ├── agents.py           # AgentInfo, AgentConfig
+│   └── blueprints.py       # BlueprintInfo
+│
+├── services/                 # Business Logic Layer
+│   ├── chat_service.py     # Chat orchestration logic
+│   ├── session_service.py  # Session management logic
+│   └── blueprint_service.py # Blueprint operations
+│
+├── orchestrator/             # Agent Orchestration
+│   ├── routing/            # Routing components
+│   │   ├── patterns.py    # RoutingPattern enum
+│   │   └── prompts.py     # Prompt templates
+│   ├── classifier.py       # OllamaSupervisorClassifier
+│   └── supervisor.py       # SupervisorOrchestrator
+│
+├── agents/                   # Agent Implementations
+│   ├── base.py             # OllamaAgent, AgentConfig
+│   ├── factory.py          # Agent creation from YAML
+│   └── registry.py         # AgentRegistry singleton
+│
+├── repositories/             # Data Access Layer
+│   ├── dynamodb_client.py  # DynamoDB/ScyllaDB operations
+│   ├── session_repository.py
+│   ├── message_repository.py
+│   └── schema_evolution.py # Schema versioning
+│
+└── cache/                    # Caching Layer
+    └── redis_client.py     # Redis Sentinel client
+```
+
+**Layer Responsibilities:**
+
+| Layer | Responsibility |
+|-------|---------------|
+| **Routes** | HTTP handling, request validation, response formatting |
+| **Services** | Business logic, orchestration, transaction boundaries |
+| **Repositories** | Data persistence, caching, external storage |
+| **Schemas** | Shared DTOs between layers, Pydantic models |
+| **Dependencies** | FastAPI DI for cross-cutting concerns |
+
+**Import Rules:**
+
+```python
+# Routes import from: schemas, services, dependencies
+from ...schemas import ChatRequest, ChatResponse
+from ...services.chat_service import ChatService
+from ..dependencies import get_registry
+
+# Services import from: repositories, agents, schemas
+from ..repositories.session_repository import SessionRepository
+from ..agents.registry import AgentRegistry
+
+# Repositories import from: config, cache (never from services/routes)
+from ..config import get_settings
+from ..cache.redis_client import get_redis_client
+```
+
 ## Environment Variables
 
 ### Backend (.env in packages/core)

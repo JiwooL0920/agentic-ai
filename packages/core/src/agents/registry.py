@@ -3,7 +3,6 @@ Agent Registry - manages loaded agents across blueprints.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import structlog
 
@@ -27,10 +26,10 @@ class AgentRegistry:
             blueprints_path: Path to the blueprints directory
         """
         self.blueprints_path = blueprints_path
-        self._agents: Dict[str, Dict[str, OllamaAgent]] = {}
-        self._configs: Dict[str, Dict[str, AgentConfig]] = {}
+        self._agents: dict[str, dict[str, OllamaAgent]] = {}
+        self._configs: dict[str, dict[str, AgentConfig]] = {}
 
-    def list_blueprints(self) -> List[str]:
+    def list_blueprints(self) -> list[str]:
         """List available blueprints."""
         if not self.blueprints_path.exists():
             return []
@@ -41,7 +40,7 @@ class AgentRegistry:
             if d.is_dir() and (d / "config.yaml").exists()
         ]
 
-    def get_blueprint_configs(self, blueprint: str) -> Dict[str, AgentConfig]:
+    def get_blueprint_configs(self, blueprint: str) -> dict[str, AgentConfig]:
         """
         Get agent configurations for a blueprint (lazy loaded).
 
@@ -60,7 +59,7 @@ class AgentRegistry:
 
         return self._configs[blueprint]
 
-    def get_blueprint_agents(self, blueprint: str) -> Dict[str, OllamaAgent]:
+    def get_blueprint_agents(self, blueprint: str) -> dict[str, OllamaAgent]:
         """
         Get agents for a blueprint (lazy loaded).
 
@@ -79,7 +78,7 @@ class AgentRegistry:
 
         return self._agents[blueprint]
 
-    def get_agent(self, blueprint: str, agent_name: str) -> Optional[OllamaAgent]:
+    def get_agent(self, blueprint: str, agent_name: str) -> OllamaAgent | None:
         """
         Get a specific agent.
 
@@ -107,7 +106,7 @@ class AgentRegistry:
 
         logger.info("reloaded_blueprint", blueprint=blueprint)
 
-    def list_agents(self, blueprint: str) -> List[str]:
+    def list_agents(self, blueprint: str) -> list[str]:
         """
         List agent names for a blueprint.
 

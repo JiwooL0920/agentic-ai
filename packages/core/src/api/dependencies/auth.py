@@ -1,4 +1,4 @@
-"""FastAPI authentication dependencies."""
+"""Authentication dependencies."""
 
 from typing import Annotated
 

@@ -40,9 +40,9 @@ def mock_redis() -> Generator[MagicMock, None, None]:
             "src.cache.redis_client.close_redis", new_callable=AsyncMock
         ) as close_mock:
             with patch(
-                "src.cache.redis_client.get_redis", new_callable=AsyncMock
+                "src.cache.redis_client.get_redis_client"
             ) as get_mock:
-                get_mock.return_value = AsyncMock()
+                get_mock.return_value = MagicMock()
                 yield {"init": init_mock, "close": close_mock, "get": get_mock}
 
 

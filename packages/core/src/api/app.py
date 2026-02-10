@@ -4,9 +4,9 @@ FastAPI Application Factory.
 Creates the main API application with all routes and middleware.
 """
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator
 
 import structlog
 from fastapi import FastAPI
@@ -15,7 +15,7 @@ from prometheus_client import make_asgi_app
 from redis.exceptions import RedisError
 
 from ..agents.registry import AgentRegistry
-from ..cache.redis_client import init_redis, close_redis
+from ..cache.redis_client import close_redis, init_redis
 from ..config import get_settings
 from .routes import agents, blueprints, chat, health, sessions
 
@@ -37,13 +37,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Initialize settings and registry using cached singleton
     settings = get_settings()
     blueprints_path = Path(settings.blueprints_path)
-    
+
     # Resolve blueprints path relative to workspace root if not absolute
     if not blueprints_path.is_absolute():
         # Find workspace root: packages/core/src/api/app.py -> go up 4 levels
         workspace_root = Path(__file__).parent.parent.parent.parent.parent
         blueprints_path = workspace_root / blueprints_path
-    
+
     blueprints_path = blueprints_path.resolve()
 
     app.state.settings = settings
@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
     logger.info("shutting_down_application")
-    
+
     # Close Redis connection
     try:
         await close_redis()

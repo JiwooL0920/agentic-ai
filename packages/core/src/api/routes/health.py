@@ -1,6 +1,5 @@
 """Health check endpoints."""
 
-from typing import Dict
 
 import httpx
 import structlog
@@ -19,13 +18,13 @@ _ollama_client = AsyncClient(host=settings.ollama_host)
 
 
 @router.get("/health")
-async def health_check() -> Dict[str, str]:
+async def health_check() -> dict[str, str]:
     """Basic health check."""
     return {"status": "healthy"}
 
 
 @router.get("/health/detailed")
-async def detailed_health_check() -> Dict[str, Dict[str, str]]:
+async def detailed_health_check() -> dict[str, dict[str, str]]:
     """Detailed health check including dependencies."""
     health_status = {
         "api": {"status": "healthy"},
@@ -47,7 +46,7 @@ async def detailed_health_check() -> Dict[str, Dict[str, str]]:
 
 
 @router.get("/ready")
-async def readiness_check() -> Dict[str, str]:
+async def readiness_check() -> dict[str, str]:
     """Kubernetes readiness probe."""
     # Check if essential services are available (non-blocking)
     try:
@@ -58,6 +57,6 @@ async def readiness_check() -> Dict[str, str]:
 
 
 @router.get("/live")
-async def liveness_check() -> Dict[str, str]:
+async def liveness_check() -> dict[str, str]:
     """Kubernetes liveness probe."""
     return {"status": "alive"}

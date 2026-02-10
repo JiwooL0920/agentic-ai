@@ -11,8 +11,9 @@ Company Pattern Adaptation:
 - Knowledge Base → pgvector RAG
 """
 
+from collections.abc import AsyncIterable
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterable, Dict, List, Optional
+from typing import Any
 
 import httpx
 import structlog
@@ -36,8 +37,8 @@ class AgentConfig:
     system_prompt: str = ""
     temperature: float = 0.7
     max_tokens: int = 4096
-    tools: List[Dict[str, Any]] = field(default_factory=list)
-    knowledge_scope: List[str] = field(default_factory=list)
+    tools: list[dict[str, Any]] = field(default_factory=list)
+    knowledge_scope: list[str] = field(default_factory=list)
     icon: str = "🤖"
     color: str = "gray-500"
     streaming: bool = True
@@ -51,9 +52,9 @@ class OllamaAgentOptions(AgentOptions):
     streaming: bool = True
     temperature: float = 0.7
     max_tokens: int = 4096
-    system_prompt: Optional[str] = None
-    tools: List[Dict[str, Any]] = field(default_factory=list)
-    knowledge_scope: List[str] = field(default_factory=list)
+    system_prompt: str | None = None
+    tools: list[dict[str, Any]] = field(default_factory=list)
+    knowledge_scope: list[str] = field(default_factory=list)
 
 
 class OllamaAgent(Agent):
@@ -79,8 +80,8 @@ class OllamaAgent(Agent):
     def _build_messages(
         self,
         input_text: str,
-        chat_history: List[ConversationMessage],
-    ) -> List[Dict[str, str]]:
+        chat_history: list[ConversationMessage],
+    ) -> list[dict[str, str]]:
         """Build message list for Ollama API."""
         messages = []
 
@@ -99,7 +100,7 @@ class OllamaAgent(Agent):
         return messages
 
     async def _handle_streaming_response(
-        self, messages: List[Dict[str, str]]
+        self, messages: list[dict[str, str]]
     ) -> AsyncIterable[str]:
         """Handle streaming response from Ollama (non-blocking async)."""
         try:
@@ -123,7 +124,7 @@ class OllamaAgent(Agent):
             raise
 
     async def _handle_sync_response(
-        self, messages: List[Dict[str, str]]
+        self, messages: list[dict[str, str]]
     ) -> ConversationMessage:
         """Handle synchronous response from Ollama (non-blocking async)."""
         try:
@@ -153,8 +154,8 @@ class OllamaAgent(Agent):
         input_text: str,
         user_id: str,
         session_id: str,
-        chat_history: List[ConversationMessage],
-        additional_params: Optional[Dict[str, str]] = None,
+        chat_history: list[ConversationMessage],
+        additional_params: dict[str, str] | None = None,
     ) -> ConversationMessage | AsyncIterable[Any]:
         """
         Process request using Ollama.

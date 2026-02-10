@@ -4,7 +4,6 @@ Mirrors company's pattern of loading agent configurations.
 """
 
 from pathlib import Path
-from typing import Dict
 
 import structlog
 import yaml
@@ -69,7 +68,7 @@ def load_agent_from_yaml(yaml_path: Path) -> OllamaAgent:
     )
 
 
-def load_blueprint_agents(blueprint_path: Path) -> Dict[str, OllamaAgent]:
+def load_blueprint_agents(blueprint_path: Path) -> dict[str, OllamaAgent]:
     """
     Load all agents for a blueprint.
 
@@ -79,7 +78,7 @@ def load_blueprint_agents(blueprint_path: Path) -> Dict[str, OllamaAgent]:
     Returns:
         Dictionary mapping agent names to OllamaAgent instances
     """
-    agents: Dict[str, OllamaAgent] = {}
+    agents: dict[str, OllamaAgent] = {}
     agents_dir = blueprint_path / "agents"
 
     if not agents_dir.exists():
@@ -99,7 +98,7 @@ def load_blueprint_agents(blueprint_path: Path) -> Dict[str, OllamaAgent]:
     return agents
 
 
-def load_agent_configs(blueprint_path: Path) -> Dict[str, AgentConfig]:
+def load_agent_configs(blueprint_path: Path) -> dict[str, AgentConfig]:
     """
     Load all agent configurations for a blueprint (metadata only).
 
@@ -109,7 +108,7 @@ def load_agent_configs(blueprint_path: Path) -> Dict[str, AgentConfig]:
     Returns:
         Dictionary mapping agent names to AgentConfig
     """
-    configs: Dict[str, AgentConfig] = {}
+    configs: dict[str, AgentConfig] = {}
     agents_dir = blueprint_path / "agents"
 
     if not agents_dir.exists():

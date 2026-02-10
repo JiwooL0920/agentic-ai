@@ -1,6 +1,6 @@
-"""Shared Pydantic models for API responses."""
+"""Common shared Pydantic models for API responses."""
 
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -55,14 +55,4 @@ class ToolDefinition(BaseModel):
 
     name: str
     description: str
-    parameters: List[ToolParameter] = []
-
-
-class AgentToggleResponse(BaseModel):
-    """Response from agent toggle endpoint."""
-
-    status: Literal["success", "error"]
-    agent_id: str
-    agent_name: str
-    enabled: bool
-    message: Optional[str] = None
+    parameters: list[ToolParameter] = []

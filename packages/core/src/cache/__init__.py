@@ -2,9 +2,9 @@
 
 from .redis_client import (
     RedisSentinelClient,
+    close_redis,
     get_redis_client,
     init_redis,
-    close_redis,
 )
 
 __all__ = [
