@@ -76,3 +76,22 @@ skaffold delete
 5. Test at `http://api.local/docs`
 
 No manual rebuild/redeploy needed!
+
+## Ollama Configuration
+
+Ollama runs on your Mac (for direct GPU/Neural Engine access) and is accessed from the cluster via `host.docker.internal`:
+
+```yaml
+# In deployment.yaml
+OLLAMA_HOST: "http://host.docker.internal:11434"
+```
+
+Ensure Ollama is running before starting the cluster:
+```bash
+# Start Ollama
+ollama serve
+
+# Verify models are available
+ollama list
+# Should show: qwen2.5:7b, qwen2.5:32b
+```

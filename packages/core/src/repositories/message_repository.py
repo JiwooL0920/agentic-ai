@@ -7,6 +7,7 @@ Handles CRUD operations for chat messages stored in ScyllaDB.
 from typing import List, Optional
 from datetime import datetime, timezone
 from uuid import uuid4
+import time
 
 import structlog
 
@@ -25,7 +26,7 @@ class MessageRepository:
     
     Table: {blueprint}-history
     PK: session_id (HASH)
-    SK: created_on (RANGE) - for time-series queries
+    SK: timestamp (RANGE) - Unix epoch in milliseconds for time-series queries
     """
     
     def __init__(self, blueprint: str):
@@ -43,16 +44,19 @@ class MessageRepository:
     ) -> dict:
         """Save a single chat message."""
         message_id = uuid4().hex
-        now = datetime.now(timezone.utc).isoformat()
+        # Use Unix epoch milliseconds for sort key (Number type in DynamoDB)
+        timestamp = int(time.time() * 1000)
+        created_on = datetime.now(timezone.utc).isoformat()
         
         message = {
             'session_id': session_id,
-            'created_on': now,
+            'timestamp': timestamp,  # Sort key - Number (epoch ms)
+            'created_on': created_on,  # Human-readable ISO timestamp
             'message_id': message_id,
             'role': role,  # 'user', 'assistant', 'system'
             'content': content,
             'expires_at': calculate_ttl(settings.history_ttl_days),
-            'schema_version': 1,  # ← Schema versioning
+            'schema_version': 1,
         }
         
         if agent:
