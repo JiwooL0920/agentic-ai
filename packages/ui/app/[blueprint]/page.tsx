@@ -6,9 +6,8 @@ import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Sparkles, MessageSquare, Code, FileQuestion, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +15,7 @@ import { AgentManager } from '@/components/agent-manager';
 
 const SyntaxHighlighter = dynamic(
   () => import('react-syntax-highlighter').then((mod) => mod.Prism),
-  { ssr: false, loading: () => <div className="animate-pulse bg-muted h-20 rounded" /> }
+  { ssr: false, loading: () => <div className="animate-shimmer h-20 rounded-xl" /> }
 );
 
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
@@ -28,6 +27,13 @@ interface Message {
   agent?: string;
 }
 
+const suggestions = [
+  { icon: Code, text: 'Help me debug this error', color: 'text-blue-500' },
+  { icon: FileQuestion, text: 'Explain how this code works', color: 'text-green-500' },
+  { icon: Lightbulb, text: 'Suggest improvements for my code', color: 'text-yellow-500' },
+  { icon: MessageSquare, text: 'Review my architecture decisions', color: 'text-purple-500' },
+];
+
 export default function ChatPage() {
   const params = useParams();
   const blueprint = params.blueprint as string;
@@ -36,10 +42,16 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastUserMessageRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -77,6 +89,18 @@ export default function ChatPage() {
       scrollToBottom(true);
     }
   }, [messages, scrollToBottom, scrollToLastUserMessage]);
+
+  const adjustTextareaHeight = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+    }
+  }, []);
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [input, adjustTextareaHeight]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,63 +238,97 @@ export default function ChatPage() {
     }
   };
 
+  const handleSuggestionClick = (text: string) => {
+    setInput(text);
+    textareaRef.current?.focus();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header */}
-      <header className="border-b px-4 py-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Link href="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="font-semibold capitalize">{blueprint}</h1>
-            <p className="text-sm text-muted-foreground">
-              Chat with specialized AI agents
-            </p>
+    <div className="flex flex-col h-screen bg-background">
+      <header className="border-b border-border/50 px-4 py-3 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link href="/">
+              <Button variant="ghost" size="icon" className="hover:bg-primary/10">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div className="h-8 w-px bg-border" />
+            <div>
+              <h1 className="font-semibold text-lg capitalize flex items-center gap-2">
+                {blueprint}
+                <Sparkles className="h-4 w-4 text-primary" />
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Multi-agent AI assistant
+              </p>
+            </div>
           </div>
+          <AgentManager blueprint={blueprint} sessionId={sessionId} />
         </div>
-        <AgentManager blueprint={blueprint} sessionId={sessionId} />
       </header>
 
-      {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-        <div className="max-w-3xl mx-auto space-y-4">
-          {messages.length === 0 && (
-            <div className="text-center text-muted-foreground py-12">
-              <p className="text-lg mb-2">Welcome to {blueprint}</p>
-              <p className="text-sm">
-                Ask any question and I'll route it to the best agent
+      <ScrollArea className="flex-1" ref={scrollAreaRef}>
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          {messages.length === 0 && mounted && (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center mb-6 shadow-lg shadow-primary/10">
+                <Sparkles className="w-10 h-10 text-primary" />
+              </div>
+              <h2 className="text-2xl font-semibold mb-2">Welcome to {blueprint}</h2>
+              <p className="text-muted-foreground mb-8 max-w-md">
+                I&apos;ll route your questions to the best specialized agent. What would you like help with?
               </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
+                {suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleSuggestionClick(s.text)}
+                    className="flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-card/50 hover:bg-card hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all text-left group"
+                  >
+                    <s.icon className={`w-5 h-5 ${s.color} group-hover:scale-110 transition-transform`} />
+                    <span className="text-sm">{s.text}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          {messages.map((message, index) => (
+          {mounted && messages.map((message, index) => (
             <div
               key={message.id}
               ref={message.role === 'user' && index === messages.length - 1 ? lastUserMessageRef : null}
-              className={`flex gap-3 ${
+              className={`flex gap-4 mb-6 ${
                 message.role === 'user' ? 'justify-end' : 'justify-start'
               }`}
             >
               {message.role === 'assistant' && (
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                <Avatar className="h-9 w-9 border-2 border-primary/20 shadow-lg shadow-primary/10">
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-purple-600 text-white text-xs font-medium">
                     AI
                   </AvatarFallback>
                 </Avatar>
               )}
 
               <div
-                className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                className={`max-w-[85%] md:max-w-[75%] rounded-2xl px-4 py-3 ${
                   message.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
+                    ? 'message-user rounded-br-md'
+                    : 'message-assistant rounded-bl-md'
                 }`}
               >
                 {message.agent && (
-                  <Badge variant="outline" className="mb-2 text-xs">
+                  <Badge 
+                    variant="outline" 
+                    className="mb-2 text-xs bg-primary/10 text-primary border-primary/20"
+                  >
                     {message.agent}
                   </Badge>
                 )}
@@ -278,7 +336,7 @@ export default function ChatPage() {
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      code({ node, inline, className, children, ...props }: any) {
+                      code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) {
                         const match = /language-(\w+)/.exec(className || '');
                         const language = match ? match[1] : '';
                         
@@ -289,8 +347,9 @@ export default function ChatPage() {
                             PreTag="div"
                             customStyle={{
                               margin: '1em 0',
-                              borderRadius: '0.5rem',
+                              borderRadius: '0.75rem',
                               fontSize: '0.875rem',
+                              border: '1px solid rgba(255,255,255,0.1)',
                             }}
                             {...props}
                           >
@@ -310,51 +369,68 @@ export default function ChatPage() {
               </div>
 
               {message.role === 'user' && (
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-secondary">U</AvatarFallback>
+                <Avatar className="h-9 w-9 border-2 border-border shadow">
+                  <AvatarFallback className="bg-secondary text-secondary-foreground font-medium">
+                    U
+                  </AvatarFallback>
                 </Avatar>
               )}
             </div>
           ))}
 
-          {isLoading && messages[messages.length - 1]?.role === 'user' && (
-            <div className="flex gap-3 justify-start">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+          {mounted && isLoading && messages[messages.length - 1]?.role === 'user' && (
+            <div className="flex gap-4 mb-6 justify-start">
+              <Avatar className="h-9 w-9 border-2 border-primary/20 shadow-lg shadow-primary/10">
+                <AvatarFallback className="bg-gradient-to-br from-primary to-purple-600 text-white text-xs font-medium">
                   AI
                 </AvatarFallback>
               </Avatar>
-              <div className="bg-muted rounded-lg px-4 py-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
+              <div className="message-assistant rounded-2xl rounded-bl-md px-5 py-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-primary animate-typing-1" />
+                  <span className="w-2 h-2 rounded-full bg-primary animate-typing-2" />
+                  <span className="w-2 h-2 rounded-full bg-primary animate-typing-3" />
+                </div>
               </div>
             </div>
           )}
           
-          {/* Invisible element at the bottom for auto-scroll */}
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 
-      {/* Input */}
-      <div className="border-t p-4">
+      <div className="border-t border-border/50 bg-background/80 backdrop-blur-xl p-4">
         <form
           onSubmit={handleSubmit}
-          className="max-w-3xl mx-auto flex gap-2"
+          className="max-w-4xl mx-auto"
         >
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask anything..."
-            disabled={isLoading}
-            className="flex-1"
-          />
-          <Button type="submit" disabled={isLoading || !input.trim()}>
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
+          <div className="relative flex items-end gap-2 p-2 rounded-2xl border border-border/50 bg-card shadow-lg shadow-black/5 focus-within:border-primary/50 focus-within:shadow-primary/5 transition-all">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask anything... (Shift+Enter for new line)"
+              disabled={isLoading}
+              rows={1}
+              className="flex-1 resize-none bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 max-h-[200px]"
+            />
+            <Button 
+              type="submit" 
+              disabled={isLoading || !input.trim()}
+              size="icon"
+              className="h-10 w-10 rounded-xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 disabled:shadow-none transition-all"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            AI responses may be inaccurate. Please verify important information.
+          </p>
         </form>
       </div>
     </div>

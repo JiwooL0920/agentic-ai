@@ -1,5 +1,7 @@
 """Base Redis client with connection management and core operations."""
 
+from __future__ import annotations
+
 from typing import Any
 
 import redis.asyncio as aioredis
