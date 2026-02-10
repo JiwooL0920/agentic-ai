@@ -24,6 +24,7 @@ from .sessions import (
     UpdateSessionStateRequest,
     UpdateSessionTitleRequest,
 )
+from .stats import ResourceUsage, SystemStats
 
 __all__ = [
     # Agents
@@ -50,4 +51,7 @@ __all__ = [
     "SessionListResponse",
     "UpdateSessionStateRequest",
     "UpdateSessionTitleRequest",
+    # Stats
+    "ResourceUsage",
+    "SystemStats",
 ]

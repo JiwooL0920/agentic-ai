@@ -61,7 +61,8 @@ class SessionService:
 
         # Invalidate user's session list cache
         try:
-            await self._redis.invalidate_user_sessions(user_id, self._blueprint)
+            if self._redis:
+                await self._redis.invalidate_user_sessions(user_id, self._blueprint)
         except RedisError as e:
             self._logger.warning("redis_invalidate_error", error=str(e))
 
@@ -87,10 +88,11 @@ class SessionService:
         """
         # Check Redis cache first
         try:
-            cached = await self._redis.get_cached_user_sessions(user_id, self._blueprint)
-            if cached and not include_archived:
-                self._logger.debug("user_sessions_cache_hit", user_id=user_id)
-                return {"sessions": cached, "total": len(cached)}
+            if self._redis:
+                cached = await self._redis.get_cached_user_sessions(user_id, self._blueprint)
+                if cached and not include_archived:
+                    self._logger.debug("user_sessions_cache_hit", user_id=user_id)
+                    return {"sessions": cached, "total": len(cached)}
         except RedisError as e:
             self._logger.warning("redis_cache_error", error=str(e))
 
@@ -103,9 +105,10 @@ class SessionService:
         # Cache for sidebar (5 minutes)
         if sessions and not include_archived:
             try:
-                await self._redis.cache_user_sessions(
-                    user_id, self._blueprint, sessions, ttl=300
-                )
+                if self._redis:
+                    await self._redis.cache_user_sessions(
+                        user_id, self._blueprint, sessions, ttl=300
+                    )
             except RedisError as e:
                 self._logger.warning("redis_cache_error", error=str(e))
 
@@ -178,7 +181,8 @@ class SessionService:
 
         # Invalidate user's session list cache
         try:
-            await self._redis.invalidate_user_sessions(user_id, self._blueprint)
+            if self._redis:
+                await self._redis.invalidate_user_sessions(user_id, self._blueprint)
         except RedisError as e:
             self._logger.warning("redis_invalidate_error", error=str(e))
 

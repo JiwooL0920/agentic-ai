@@ -194,11 +194,12 @@ class ChatService:
                 agent=active_agent,
             )
 
-            # Track active agent in Redis
+            # Track active agent in Redis (optional)
             if active_agent:
                 try:
                     redis = get_redis_client()
-                    await redis.add_active_agent(session_id, active_agent)
+                    if redis:
+                        await redis.add_active_agent(session_id, active_agent)
                 except RedisError as e:
                     self._logger.warning("redis_tracking_error", error=str(e))
 

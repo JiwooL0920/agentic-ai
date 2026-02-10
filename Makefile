@@ -21,6 +21,7 @@ help:
 	@echo "  make dev             - Start all development servers"
 	@echo "  make dev-backend     - Start backend only (port 8001)"
 	@echo "  make dev-frontend    - Start frontend only (port 3000)"
+	@echo "  make dev-gpu-metrics - Start Mac GPU metrics server (port 8002, requires sudo)"
 	@echo "  make dev-k8s         - Deploy backend to Kind with hot-reload (Skaffold)"
 	@echo "  make dev-k8s-full    - Deploy backend + frontend to Kind with hot-reload"
 	@echo ""
@@ -157,6 +158,17 @@ dev-backend:
 
 dev-frontend:
 	cd packages/ui && make dev
+
+dev-gpu-metrics:
+	@echo -e "$(BLUE)Starting Mac GPU metrics server...$(RESET)"
+	@echo "Endpoint: http://localhost:8002/gpu"
+	@echo ""
+	@if [ $$(id -u) -ne 0 ]; then \
+		echo -e "$(YELLOW)Requires sudo for accurate GPU metrics$(RESET)"; \
+		sudo python3 scripts/mac-gpu-metrics.py; \
+	else \
+		python3 scripts/mac-gpu-metrics.py; \
+	fi
 
 dev-k8s:
 	@echo -e "$(BLUE)Starting Kubernetes development mode (backend only)...$(RESET)"

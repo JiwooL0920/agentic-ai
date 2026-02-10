@@ -160,7 +160,6 @@ async def close_redis() -> None:
         _redis_client = None
 
 
-def get_redis_client() -> RedisSentinelClient:
-    if _redis_client is None:
-        raise RuntimeError("Redis not initialized. Call init_redis() first.")
+def get_redis_client() -> RedisSentinelClient | None:
+    """Get Redis client, returns None if not initialized."""
     return _redis_client

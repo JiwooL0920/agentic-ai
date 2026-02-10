@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { AgentManager } from '@/components/agent-manager';
+import { SystemStats } from '@/components/system-stats';
 
 const SyntaxHighlighter = dynamic(
   () => import('react-syntax-highlighter').then((mod) => mod.Prism),
@@ -271,7 +272,10 @@ export default function ChatPage() {
               </p>
             </div>
           </div>
-          <AgentManager blueprint={blueprint} sessionId={sessionId} />
+          <div className="flex items-center gap-3">
+            <SystemStats />
+            <AgentManager blueprint={blueprint} sessionId={sessionId} />
+          </div>
         </div>
       </header>
 

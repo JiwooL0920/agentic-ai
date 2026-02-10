@@ -80,10 +80,11 @@ class SessionRepository:
         # Try cache first
         try:
             redis = get_redis_client()
-            cached = await redis.get_cached_session(session_id)
-            if cached:
-                logger.debug("session_cache_hit", session_id=session_id)
-                return cached
+            if redis:
+                cached = await redis.get_cached_session(session_id)
+                if cached:
+                    logger.debug("session_cache_hit", session_id=session_id)
+                    return cached
         except RedisError as e:
             logger.warning("redis_cache_error", error=str(e))
 
@@ -100,11 +101,12 @@ class SessionRepository:
 
             try:
                 redis = get_redis_client()
-                await redis.cache_session(
-                    session_id,
-                    session,
-                    ttl=settings.session_cache_ttl,
-                )
+                if redis:
+                    await redis.cache_session(
+                        session_id,
+                        session,
+                        ttl=settings.session_cache_ttl,
+                    )
             except RedisError as e:
                 logger.warning("redis_cache_error", error=str(e))
 
@@ -177,8 +179,9 @@ class SessionRepository:
             # Invalidate cache
             try:
                 redis = get_redis_client()
-                await redis.invalidate_session(session_id)
-                await redis.invalidate_user_sessions(user_id, self.blueprint)
+                if redis:
+                    await redis.invalidate_session(session_id)
+                    await redis.invalidate_user_sessions(user_id, self.blueprint)
             except RedisError as e:
                 logger.warning("redis_invalidate_error", error=str(e))
 
@@ -207,7 +210,8 @@ class SessionRepository:
             # Invalidate cache
             try:
                 redis = get_redis_client()
-                await redis.invalidate_session(session_id)
+                if redis:
+                    await redis.invalidate_session(session_id)
             except RedisError as e:
                 logger.warning("redis_invalidate_error", error=str(e))
 
@@ -235,6 +239,7 @@ class SessionRepository:
         # Invalidate cache
         try:
             redis = get_redis_client()
-            await redis.invalidate_session(session_id)
+            if redis:
+                await redis.invalidate_session(session_id)
         except RedisError as e:
             logger.warning("redis_invalidate_error", error=str(e))
