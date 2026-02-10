@@ -14,10 +14,13 @@ Company Pattern Adaptation:
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterable, Dict, List, Optional
 
+import httpx
 import structlog
 from agent_squad.agents import Agent, AgentOptions
 from agent_squad.types import ConversationMessage, ParticipantRole
 from ollama import AsyncClient
+
+from ..config import get_settings
 
 logger = structlog.get_logger()
 
@@ -69,8 +72,9 @@ class OllamaAgent(Agent):
         self.tools = options.tools
         self.knowledge_scope = options.knowledge_scope
         self._logger = logger.bind(agent=options.name, model=options.model_id)
-        # Initialize async Ollama client
-        self._client = AsyncClient()
+        # Initialize async Ollama client with configured host
+        settings = get_settings()
+        self._client = AsyncClient(host=settings.ollama_host)
 
     def _build_messages(
         self,
@@ -114,7 +118,7 @@ class OllamaAgent(Agent):
                 if content:
                     yield content
 
-        except Exception as e:
+        except (httpx.HTTPError, httpx.ConnectError, httpx.TimeoutException) as e:
             self._logger.error("streaming_error", error=str(e))
             raise
 
@@ -136,11 +140,11 @@ class OllamaAgent(Agent):
             content = response.get("message", {}).get("content", "")
 
             return ConversationMessage(
-                role=ParticipantRole.ASSISTANT.value,
+                role=ParticipantRole.ASSISTANT,
                 content=[{"text": content}],
             )
 
-        except Exception as e:
+        except (httpx.HTTPError, httpx.ConnectError, httpx.TimeoutException) as e:
             self._logger.error("response_error", error=str(e))
             raise
 

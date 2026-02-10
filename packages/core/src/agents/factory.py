@@ -91,7 +91,7 @@ def load_blueprint_agents(blueprint_path: Path) -> Dict[str, OllamaAgent]:
             agent = load_agent_from_yaml(yaml_file)
             agents[agent.name] = agent
             logger.info("loaded_agent", name=agent.name)
-        except Exception as e:
+        except (yaml.YAMLError, KeyError, FileNotFoundError, ValueError, TypeError) as e:
             logger.error("failed_to_load_agent", file=str(yaml_file), error=str(e))
 
     logger.info("loaded_blueprint_agents", count=len(agents), blueprint=blueprint_path.name)
@@ -119,7 +119,7 @@ def load_agent_configs(blueprint_path: Path) -> Dict[str, AgentConfig]:
         try:
             config = load_agent_config(yaml_file)
             configs[config.name] = config
-        except Exception as e:
+        except (yaml.YAMLError, KeyError, FileNotFoundError, ValueError, TypeError) as e:
             logger.error("failed_to_load_config", file=str(yaml_file), error=str(e))
 
     return configs

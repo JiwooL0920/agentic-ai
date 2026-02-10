@@ -25,27 +25,37 @@ const defaultBlueprints: Blueprint[] = [
 ];
 
 export default function Home() {
-  const [blueprints, setBlueprints] = useState<Blueprint[]>(defaultBlueprints);
+  const [blueprints, setBlueprints] = useState<Blueprint[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchBlueprints() {
       try {
-        const response = await fetch(`${process.env.API_URL}/api/blueprints`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+        const response = await fetch(`${apiUrl}/api/blueprints`);
         if (response.ok) {
           const data = await response.json();
           // Fetch details for each blueprint
           const detailed = await Promise.all(
             data.map(async (slug: string) => {
-              const res = await fetch(`${process.env.API_URL}/api/blueprints/${slug}`);
+              const res = await fetch(`${apiUrl}/api/blueprints/${slug}`);
               if (res.ok) return res.json();
               return null;
             })
           );
-          setBlueprints(detailed.filter(Boolean));
+          const validBlueprints = detailed.filter(Boolean);
+          if (validBlueprints.length > 0) {
+            setBlueprints(validBlueprints);
+          } else {
+            // Fall back to defaults if API returns empty
+            setBlueprints(defaultBlueprints);
+          }
+        } else {
+          // Fall back to defaults if API fails
+          setBlueprints(defaultBlueprints);
         }
-      } catch (error) {
-        console.log('Using default blueprints');
+      } catch {
+        setBlueprints(defaultBlueprints);
       } finally {
         setLoading(false);
       }
@@ -66,8 +76,13 @@ export default function Home() {
         </div>
 
         {/* Blueprint Grid */}
-        <div className="grid md:grid-cols-2 gap-4">
-          {blueprints.map((bp) => (
+        {loading ? (
+          <div className="text-center py-8">Loading blueprints...</div>
+        ) : blueprints.length === 0 ? (
+          <div className="text-center py-8">No blueprints available</div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            {blueprints.map((bp) => (
             <Link key={bp.slug} href={`/${bp.slug}`}>
               <Card className="h-full hover:border-primary transition-colors cursor-pointer group">
                 <CardHeader>
@@ -90,8 +105,9 @@ export default function Home() {
                 </CardHeader>
               </Card>
             </Link>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-12 text-center text-sm text-muted-foreground">

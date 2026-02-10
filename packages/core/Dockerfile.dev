@@ -1,0 +1,28 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency files first for layer caching
+COPY packages/core/pyproject.toml packages/core/README.md ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -e .
+
+# Copy application code
+COPY packages/core/ ./
+
+# Copy ONLY YAML files from blueprints (exclude Terraform)
+COPY blueprints/devassist/agents/ /app/blueprints/devassist/agents/
+COPY blueprints/devassist/config.yaml /app/blueprints/devassist/config.yaml
+COPY blueprints/devassist/knowledge/ /app/blueprints/devassist/knowledge/
+
+# Expose port
+EXPOSE 8001
+
+# Run with auto-reload using factory pattern
+CMD ["uvicorn", "src.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8001", "--reload"]

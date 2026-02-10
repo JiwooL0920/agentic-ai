@@ -1,12 +1,11 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import dynamic from 'next/dynamic';
 import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +13,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { AgentManager } from '@/components/agent-manager';
+
+const SyntaxHighlighter = dynamic(
+  () => import('react-syntax-highlighter').then((mod) => mod.Prism),
+  { ssr: false, loading: () => <div className="animate-pulse bg-muted h-20 rounded" /> }
+);
+
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 
 interface Message {
   id: string;
@@ -30,21 +36,54 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom when messages update
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const lastUserMessageRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (viewport) {
+      viewport.scrollTo({
+        top: viewport.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto'
+      });
+    }
+  }, []);
+
+  const scrollToLastUserMessage = useCallback(() => {
+    if (!lastUserMessageRef.current) return;
+    
+    const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (viewport) {
+      const messageTop = lastUserMessageRef.current.offsetTop;
+      viewport.scrollTo({
+        top: messageTop - 20,
+        behavior: 'auto'
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (messages.length > 0 && messages[messages.length - 1].role === 'user') {
+      setTimeout(() => scrollToLastUserMessage(), 0);
+    } else {
+      scrollToBottom(true);
+    }
+  }, [messages, scrollToBottom, scrollToLastUserMessage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
+
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -59,7 +98,6 @@ export default function ChatPage() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
 
     try {
-      // Use streaming endpoint
       const response = await fetch(
         `${apiUrl}/api/blueprints/${blueprint}/chat/stream`,
         {
@@ -70,6 +108,7 @@ export default function ChatPage() {
             session_id: sessionId,
             stream: true,
           }),
+          signal: abortControllerRef.current.signal,
         }
       );
 
@@ -114,7 +153,10 @@ export default function ChatPage() {
                     )
                   );
                 }
-              } catch {}
+              } catch (parseError) {
+                if (parseError instanceof SyntaxError) continue;
+                throw parseError;
+              }
             }
           }
         }
@@ -122,7 +164,10 @@ export default function ChatPage() {
         reader.releaseLock();
       }
     } catch (error) {
-      // Fallback to non-streaming
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      
       try {
         const response = await fetch(
           `${apiUrl}/api/blueprints/${blueprint}/chat`,
@@ -134,6 +179,7 @@ export default function ChatPage() {
               session_id: sessionId,
               stream: false,
             }),
+            signal: abortControllerRef.current?.signal,
           }
         );
 
@@ -150,7 +196,10 @@ export default function ChatPage() {
             },
           ]);
         }
-      } catch {
+      } catch (fallbackError) {
+        if (fallbackError instanceof Error && fallbackError.name === 'AbortError') {
+          return;
+        }
         setMessages((prev) => [
           ...prev,
           {
@@ -186,7 +235,7 @@ export default function ChatPage() {
       </header>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="max-w-3xl mx-auto space-y-4">
           {messages.length === 0 && (
             <div className="text-center text-muted-foreground py-12">
@@ -197,9 +246,10 @@ export default function ChatPage() {
             </div>
           )}
 
-          {messages.map((message) => (
+          {messages.map((message, index) => (
             <div
               key={message.id}
+              ref={message.role === 'user' && index === messages.length - 1 ? lastUserMessageRef : null}
               className={`flex gap-3 ${
                 message.role === 'user' ? 'justify-end' : 'justify-start'
               }`}

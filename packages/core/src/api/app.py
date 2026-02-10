@@ -12,10 +12,12 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
+from redis.exceptions import RedisError
 
 from ..agents.registry import AgentRegistry
+from ..cache.redis_client import init_redis, close_redis
 from ..config import get_settings
-from .routes import agents, blueprints, chat, health
+from .routes import agents, blueprints, chat, health, sessions
 
 logger = structlog.get_logger()
 
@@ -24,6 +26,13 @@ logger = structlog.get_logger()
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager."""
     logger.info("starting_application")
+
+    # Initialize Redis Sentinel connection
+    try:
+        await init_redis()
+        logger.info("redis_sentinel_initialized")
+    except (RedisError, ConnectionError, OSError) as e:
+        logger.warning("redis_init_failed", error=str(e))
 
     # Initialize settings and registry using cached singleton
     settings = get_settings()
@@ -49,6 +58,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
     logger.info("shutting_down_application")
+    
+    # Close Redis connection
+    try:
+        await close_redis()
+        logger.info("redis_closed")
+    except (RedisError, ConnectionError, OSError) as e:
+        logger.warning("redis_close_failed", error=str(e))
 
 
 def create_app() -> FastAPI:
@@ -90,5 +106,6 @@ def create_app() -> FastAPI:
     app.include_router(blueprints.router, prefix="/api", tags=["Blueprints"])
     app.include_router(agents.router, prefix="/api", tags=["Agents"])
     app.include_router(chat.router, prefix="/api", tags=["Chat"])
+    app.include_router(sessions.router, prefix="/api", tags=["Sessions"])
 
     return app

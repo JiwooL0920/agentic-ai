@@ -12,6 +12,7 @@ Local Adaptation:
 
 from typing import Any, AsyncIterable, Dict, List, Optional
 
+import httpx
 import structlog
 from agent_squad.classifiers import Classifier, ClassifierResult
 from agent_squad.orchestrator import AgentSquad
@@ -19,6 +20,7 @@ from agent_squad.types import ConversationMessage
 from ollama import AsyncClient
 
 from ..agents.base import OllamaAgent
+from ..config import get_settings
 from .agent_state import get_agent_state_manager
 
 logger = structlog.get_logger()
@@ -38,7 +40,8 @@ class OllamaSupervisorClassifier(Classifier):
         self.agents = agents
         self.agent_list = list(agents.keys())
         self.model_id = model_id
-        self._client = AsyncClient()
+        settings = get_settings()
+        self._client = AsyncClient(host=settings.ollama_host)
         # Register agents with the classifier base class
         self.set_agents(agents)
 
@@ -133,7 +136,7 @@ Your response (agent name only):"""
                 confidence=0.4
             )
             
-        except Exception as e:
+        except (httpx.HTTPError, httpx.ConnectError, httpx.TimeoutException, KeyError, ValueError) as e:
             logger.error("supervisor_routing_error", error=str(e), exc_info=True)
             # On error, route to SystemArchitect as it can handle general queries
             systemarchitect = self.agents.get("systemarchitect")
@@ -256,7 +259,7 @@ Analyze this query and decide your response strategy."""
                 "session_id": session_id,
             }
 
-        except Exception as e:
+        except (httpx.HTTPError, httpx.ConnectError, httpx.TimeoutException, KeyError, ValueError, AttributeError) as e:
             logger.error("query_processing_error", error=str(e))
             raise
 
@@ -513,7 +516,7 @@ You are the Supervisor agent. Answer this query directly in a friendly, helpful 
 
             yield {"type": "done"}
 
-        except Exception as e:
+        except (httpx.HTTPError, httpx.ConnectError, httpx.TimeoutException, KeyError, ValueError, AttributeError) as e:
             logger.error("streaming_error", error=str(e), exc_info=True)
             yield {"type": "error", "error": str(e)}
 

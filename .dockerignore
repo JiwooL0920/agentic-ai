@@ -1,0 +1,11 @@
+# Ignore node_modules in packages
+packages/*/node_modules/
+packages/*/.next/
+packages/*/.git/
+packages/*/*.log
+
+# Ignore core Python artifacts
+packages/core/__pycache__/
+packages/core/**/*.pyc
+packages/core/.pytest_cache/
+packages/core/.venv/

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",  # Ignore extra env vars
     )
 
     # Application
@@ -29,23 +30,35 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen2.5:32b"
     ollama_embedding_model: str = "nomic-embed-text"
 
-    # LocalStack (AWS emulation)
-    localstack_endpoint: str = "http://localstack.local"
+    # ScyllaDB (Alternator - DynamoDB-compatible API)
+    # Note: Currently configured for LocalStack DynamoDB
+    # SECURITY: These are LocalStack development defaults - override via environment
+    # variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) in production
+    scylladb_endpoint: str = "http://localstack.localstack.svc.cluster.local:4566"
     aws_region: str = "us-east-1"
     aws_access_key_id: str = "test"
     aws_secret_access_key: str = "test"
 
-    # PostgreSQL (pgvector)
-    postgres_host: str = "localhost"
+    # PostgreSQL (pgvector - RAG only)
+    # SECURITY: Set POSTGRES_PASSWORD environment variable in production
+    postgres_host: str = "postgres-rw.database.svc.cluster.local"
     postgres_port: int = 5432
     postgres_db: str = "agentic"
     postgres_user: str = "postgres"
     postgres_password: str = ""
 
-    # Redis
-    redis_host: str = "localhost"
+    # Redis Sentinel
+    # SECURITY: Set REDIS_PASSWORD environment variable in production
+    redis_host: str = "redis-sentinel.redis-sentinel"
     redis_port: int = 6379
     redis_password: Optional[str] = None
+
+    # Session Management
+    session_cache_ttl: int = 3600  # 1 hour
+    session_ttl_days: int = 7
+    history_ttl_days: int = 30
+    context_window_recent: int = 5
+    context_window_summary: int = 5
 
     # CORS
     cors_origins: List[str] = ["http://localhost:3000"]

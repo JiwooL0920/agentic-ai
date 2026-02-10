@@ -1,0 +1,35 @@
+# Ignore Terraform files that are not needed at runtime
+blueprints/**/.terraform/
+blueprints/**/.terraform.lock.hcl
+blueprints/**/terraform.tfstate*
+blueprints/**/*.tfvars
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md

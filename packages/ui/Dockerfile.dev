@@ -1,0 +1,25 @@
+FROM node:20-alpine
+
+# Build arg to bust cache
+ARG CACHE_BUST=1
+
+# Build arg for API URL (baked into bundle at build time)
+ARG NEXT_PUBLIC_API_URL=http://localhost:8002
+
+WORKDIR /app
+
+# Copy only package.json first
+COPY packages/ui/package.json ./
+
+# Install dependencies using npm (avoids pnpm workspace complexities)
+RUN npm install
+
+# Copy app files (node_modules excluded via .dockerignore at root)  
+COPY packages/ui/ ./
+
+# Expose port
+EXPOSE 3000
+
+# Development mode with hot reload
+ENV NODE_ENV=development
+CMD ["npm", "run", "dev"]

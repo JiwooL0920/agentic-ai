@@ -1,0 +1,76 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: agentic-ai
+
+build:
+  artifacts:
+    - image: agentic-ai-core
+      context: .
+      docker:
+        dockerfile: packages/core/Dockerfile.dev
+      sync:
+        manual:
+          - src: "packages/core/src/**/*.py"
+            dest: /app/src
+          - src: "packages/core/**/*.yaml"
+            dest: /app
+          - src: "blueprints/**/*.yaml"
+            dest: /app/blueprints
+
+manifests:
+  rawYaml:
+    - k8s/dev/deployment.yaml
+
+deploy:
+  kubectl: {}
+
+portForward:
+  - resourceType: service
+    resourceName: agentic-ai-core
+    namespace: agentic-ai
+    port: 8001
+    localPort: 8001
+
+---
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: agentic-ai-full
+requires:
+  - configs: ["agentic-ai"]
+
+build:
+  artifacts:
+    - image: agentic-ai-ui
+      context: .
+      docker:
+        dockerfile: packages/ui/Dockerfile.dev
+        buildArgs:
+          CACHE_BUST: "1770311152"
+      sync:
+        manual:
+          - src: "packages/ui/app/**/*"
+            dest: /app/app
+          - src: "packages/ui/components/**/*"
+            dest: /app/components
+          - src: "packages/ui/*.ts"
+            dest: /app
+          - src: "packages/ui/*.tsx"
+            dest: /app
+          - src: "packages/ui/*.js"
+            dest: /app
+
+manifests:
+  rawYaml:
+    - k8s/dev/ui-deployment.yaml
+
+deploy:
+  kubectl: {}
+
+portForward:
+  - resourceType: service
+    resourceName: agentic-ai-ui
+    namespace: agentic-ai
+    port: 3000
+    localPort: 3000

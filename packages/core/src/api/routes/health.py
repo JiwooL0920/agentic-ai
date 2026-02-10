@@ -2,16 +2,20 @@
 
 from typing import Dict
 
+import httpx
 import structlog
 from fastapi import APIRouter
 from ollama import AsyncClient
+
+from ...config import get_settings
 
 logger = structlog.get_logger()
 
 router = APIRouter()
 
-# Initialize async Ollama client
-_ollama_client = AsyncClient()
+# Initialize async Ollama client with configured host
+settings = get_settings()
+_ollama_client = AsyncClient(host=settings.ollama_host)
 
 
 @router.get("/health")
@@ -35,7 +39,7 @@ async def detailed_health_check() -> Dict[str, Dict[str, str]]:
             "status": "healthy",
             "models": str(len(models.get("models", []))),
         }
-    except Exception as e:
+    except (httpx.HTTPError, httpx.ConnectError, httpx.TimeoutException, ConnectionError) as e:
         logger.warning("ollama_health_check_failed", error=str(e))
         health_status["ollama"] = {"status": "unhealthy", "error": str(e)}
 
@@ -49,7 +53,7 @@ async def readiness_check() -> Dict[str, str]:
     try:
         await _ollama_client.list()
         return {"status": "ready"}
-    except Exception:
+    except (httpx.HTTPError, httpx.ConnectError, httpx.TimeoutException, ConnectionError):
         return {"status": "not_ready"}
 
 

@@ -21,6 +21,8 @@ help:
 	@echo "  make dev             - Start all development servers"
 	@echo "  make dev-backend     - Start backend only (port 8001)"
 	@echo "  make dev-frontend    - Start frontend only (port 3000)"
+	@echo "  make dev-k8s         - Deploy backend to Kind with hot-reload (Skaffold)"
+	@echo "  make dev-k8s-full    - Deploy backend + frontend to Kind with hot-reload"
 	@echo ""
 	@echo "Ollama Commands:"
 	@echo "  make ollama-status   - Check Ollama status and models"
@@ -155,6 +157,41 @@ dev-backend:
 
 dev-frontend:
 	cd packages/ui && make dev
+
+dev-k8s:
+	@echo -e "$(BLUE)Starting Kubernetes development mode (backend only)...$(RESET)"
+	@echo "API: http://api.local or http://localhost:8001"
+	@echo "Docs: http://api.local/docs"
+	@echo ""
+	@echo "File sync enabled - Python changes auto-reload"
+	@echo -e "$(YELLOW)Press Ctrl+C to stop$(RESET)"
+	@command -v skaffold >/dev/null 2>&1 || { \
+		echo -e "$(YELLOW)Skaffold not found. Install with: brew install skaffold$(RESET)"; \
+		exit 1; \
+	}
+	@if ! grep -q "api.local" /etc/hosts 2>/dev/null; then \
+		echo -e "$(YELLOW)Add to /etc/hosts: 127.0.0.1 api.local$(RESET)"; \
+		echo "Run: echo '127.0.0.1 api.local' | sudo tee -a /etc/hosts"; \
+	fi
+	skaffold dev --skip-tests -m agentic-ai
+
+dev-k8s-full:
+	@echo -e "$(BLUE)Starting Kubernetes development mode (backend + frontend)...$(RESET)"
+	@echo "Frontend: http://app.local or http://localhost:3000"
+	@echo "API: http://api.local or http://localhost:8001"
+	@echo "Docs: http://api.local/docs"
+	@echo ""
+	@echo "File sync enabled - Python and TypeScript changes auto-reload"
+	@echo -e "$(YELLOW)Press Ctrl+C to stop$(RESET)"
+	@command -v skaffold >/dev/null 2>&1 || { \
+		echo -e "$(YELLOW)Skaffold not found. Install with: brew install skaffold$(RESET)"; \
+		exit 1; \
+	}
+	@if ! grep -q "app.local" /etc/hosts 2>/dev/null; then \
+		echo -e "$(YELLOW)Add to /etc/hosts: 127.0.0.1 api.local app.local$(RESET)"; \
+		echo "Run: echo '127.0.0.1 api.local app.local' | sudo tee -a /etc/hosts"; \
+	fi
+	skaffold dev --skip-tests -m agentic-ai-full
 
 # =============================================================================
 # Testing

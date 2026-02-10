@@ -1,12 +1,13 @@
 """Agent management endpoints."""
 
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 import structlog
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from ...orchestrator.agent_state import get_agent_state_manager
+from ..models import AgentToggleResponse
 
 logger = structlog.get_logger()
 
@@ -110,7 +111,7 @@ async def get_agents_status(
                     color=config.color,
                 )
             )
-        except Exception as e:
+        except (KeyError, AttributeError, ValueError) as e:
             logger.error("agent_status_check_failed", agent=name, error=str(e))
             unavailable += 1
             agents_status.append(
@@ -141,7 +142,7 @@ async def toggle_agent(
     blueprint: str, 
     agent_id: str,
     toggle_request: AgentToggleRequest
-) -> Dict[str, Any]:
+) -> AgentToggleResponse:
     """
     Toggle agent enabled/disabled state for a session.
     """
@@ -159,7 +160,13 @@ async def toggle_agent(
             break
     
     if not agent_name:
-        return {"status": "error", "message": "Agent not found"}
+        return AgentToggleResponse(
+            status="error",
+            agent_id=agent_id,
+            agent_name="",
+            enabled=False,
+            message="Agent not found"
+        )
     
     # Toggle the agent
     if toggle_request.enabled:
@@ -173,9 +180,9 @@ async def toggle_agent(
                enabled=toggle_request.enabled,
                session_id=session_id)
     
-    return {
-        "status": "success",
-        "agent_id": agent_id,
-        "agent_name": agent_name,
-        "enabled": toggle_request.enabled,
-    }
+    return AgentToggleResponse(
+        status="success",
+        agent_id=agent_id,
+        agent_name=agent_name,
+        enabled=toggle_request.enabled,
+    )

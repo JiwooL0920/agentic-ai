@@ -69,14 +69,11 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
 
   const fetchAgentsStatus = async () => {
     try {
-      // Use NEXT_PUBLIC_ prefixed env var for client-side access
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:8001';
       
-      // Use consistent session ID - "default" if none provided
       const effectiveSessionId = sessionId || 'default';
       const url = `${apiUrl}/api/blueprints/${blueprint}/agents/status?session_id=${effectiveSessionId}&t=${Date.now()}`;
       
-      console.log('Fetching agent status from:', url);
       const response = await fetch(url, {
         cache: 'no-store',
         headers: {
@@ -86,11 +83,9 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Received agent status:', data);
         setAgentsHealth(data);
       }
-    } catch (error) {
-      console.error('Failed to fetch agents status:', error);
+    } catch {
     } finally {
       setIsLoading(false);
     }
@@ -99,7 +94,6 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
   useEffect(() => {
     if (!mounted) return;
     fetchAgentsStatus();
-    // Refresh status every 30 seconds
     const interval = setInterval(fetchAgentsStatus, 30000);
     return () => clearInterval(interval);
   }, [blueprint, sessionId, mounted]);
@@ -109,17 +103,12 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
     agentName: string,
     currentEnabled: boolean
   ) => {
-    // Supervisor cannot be disabled
     if (agentName.toLowerCase() === 'supervisor') {
-      console.log('Supervisor cannot be disabled');
       return;
     }
 
     try {
-      // Use consistent session ID - if none, use "default" to match backend
       const effectiveSessionId = sessionId || 'default';
-      
-      console.log('Toggling agent:', agentId, 'from', currentEnabled, 'to', !currentEnabled, 'session:', effectiveSessionId);
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:8001';
       const response = await fetch(
         `${apiUrl}/api/blueprints/${blueprint}/agents/${agentId}/toggle`,
@@ -134,14 +123,9 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
       );
       
       if (response.ok) {
-        const result = await response.json();
-        console.log('Toggle result:', result);
-        
-        // Immediately update local state for instant UI feedback
-        // Only update the enabled flag, keep health status unchanged
         setAgentsHealth((prev) => {
           if (!prev) return prev;
-          const newState = {
+          return {
             ...prev,
             agents: prev.agents.map((agent) =>
               agent.agent_id === agentId
@@ -149,24 +133,16 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
                 : agent
             ),
           };
-          console.log('Optimistic update applied:', newState);
-          return newState;
         });
         
-        // Then fetch fresh data from server with same session ID
         setTimeout(() => {
-          console.log('Fetching fresh status...');
           fetchAgentsStatus();
         }, 500);
-      } else {
-        console.error('Toggle failed:', await response.text());
       }
-    } catch (error) {
-      console.error('Failed to toggle agent:', error);
+    } catch {
     }
   };
 
-  // Don't render until mounted to avoid hydration mismatch
   if (!mounted || isLoading || !agentsHealth) {
     return (
       <Button variant="outline" size="sm" disabled>
