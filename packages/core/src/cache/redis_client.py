@@ -1,124 +1,93 @@
 """
-Redis Sentinel client for session caching and agent state management.
+Redis Sentinel client facade for backward compatibility.
 
-Uses Redis Sentinel for high availability with automatic failover.
+This module maintains the original RedisSentinelClient API while internally
+using the new modular components (RedisClient, SessionCache, AgentStateCache,
+RateLimiter).
 """
 
-import json
-import time
-
-import redis.asyncio as aioredis
 import structlog
-from redis.asyncio.sentinel import Sentinel
-from redis.exceptions import ConnectionError as RedisConnectionError
-from redis.exceptions import RedisError
 
-from ..config import get_settings
+from .agent_state_cache import AgentStateCache
+from .base import RedisClient
+from .rate_limiter import RateLimiter
+from .session_cache import SessionCache
 
 logger = structlog.get_logger()
-settings = get_settings()
 
 
 class RedisSentinelClient:
     """
-    Async Redis Sentinel client for session caching and state management.
+    Facade over modular Redis cache components.
 
-    Provides:
-    - Session caching with TTL
-    - Agent state management (active agents per session)
-    - Rate limiting with sliding window
-    - Context summary caching
+    Maintains backward compatibility with the original API while delegating
+    to specialized cache modules internally.
     """
 
-    def __init__(self):
-        self._sentinel: Sentinel | None = None
-        self._master: aioredis.Redis | None = None
-        self._master_name = "mymaster"
+    def __init__(self) -> None:
+        self._base_client = RedisClient()
+        self._sessions: SessionCache | None = None
+        self._agents: AgentStateCache | None = None
+        self._rate_limiter: RateLimiter | None = None
 
-    async def connect(self):
-        """Connect to Redis Sentinel or fallback to direct connection."""
-        try:
-            # Try Sentinel first
-            sentinel_hosts = [(settings.redis_host, settings.redis_port)]
+    async def connect(self) -> None:
+        """Connect to Redis and initialize cache modules."""
+        await self._base_client.connect()
+        self._sessions = SessionCache(self._base_client)
+        self._agents = AgentStateCache(self._base_client)
+        self._rate_limiter = RateLimiter(self._base_client)
 
-            self._sentinel = Sentinel(
-                sentinel_hosts,
-                socket_timeout=5.0,
-                password=settings.redis_password,
-            )
-
-            self._master = self._sentinel.master_for(
-                self._master_name,
-                socket_timeout=5.0,
-                decode_responses=True,
-            )
-
-            # Test connection
-            await self._master.ping()
-            logger.info("redis_sentinel_connected", master=self._master_name)
-        except (RedisConnectionError, RedisError) as e:
-            # Fallback to direct Redis connection (non-Sentinel mode)
-            logger.warning("redis_sentinel_failed", error=str(e))
-            logger.info("falling_back_to_direct_redis")
-
-            self._master = aioredis.Redis(
-                host=settings.redis_host,
-                port=settings.redis_port,
-                password=settings.redis_password,
-                decode_responses=True,
-                socket_timeout=5.0,
-            )
-
-            await self._master.ping()
-            logger.info("redis_direct_connected")
-
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Disconnect from Redis."""
-        if self._master:
-            await self._master.aclose()
-            logger.info("redis_sentinel_disconnected")
+        await self._base_client.disconnect()
 
     @property
-    def client(self) -> aioredis.Redis:
-        """Get master client."""
-        if not self._master:
+    def client(self):
+        """Get underlying Redis client for direct operations."""
+        return self._base_client.client
+
+    @property
+    def sessions(self) -> SessionCache:
+        """Get session cache module."""
+        if not self._sessions:
             raise RuntimeError("Redis not connected. Call connect() first.")
-        return self._master
+        return self._sessions
 
-    # =====================================================================
-    # Session Caching
-    # =====================================================================
+    @property
+    def agents(self) -> AgentStateCache:
+        """Get agent state cache module."""
+        if not self._agents:
+            raise RuntimeError("Redis not connected. Call connect() first.")
+        return self._agents
 
-    async def cache_session(self, session_id: str, data: dict, ttl: int = 3600):
+    @property
+    def rate_limiter(self) -> RateLimiter:
+        """Get rate limiter module."""
+        if not self._rate_limiter:
+            raise RuntimeError("Redis not connected. Call connect() first.")
+        return self._rate_limiter
+
+    async def cache_session(self, session_id: str, data: dict, ttl: int = 3600) -> None:
         """Cache session metadata."""
-        key = f"session:{session_id}"
-        await self.client.setex(key, ttl, json.dumps(data))
-        logger.debug("session_cached", session_id=session_id, ttl=ttl)
+        await self.sessions.cache(session_id, data, ttl)
 
     async def get_cached_session(self, session_id: str) -> dict | None:
         """Get cached session."""
-        key = f"session:{session_id}"
-        data = await self.client.get(key)
-        if data:
-            return json.loads(data)
-        return None
+        return await self.sessions.get(session_id)
 
-    async def invalidate_session(self, session_id: str):
+    async def invalidate_session(self, session_id: str) -> None:
         """Delete cached session."""
-        key = f"session:{session_id}"
-        await self.client.delete(key)
-        logger.debug("session_invalidated", session_id=session_id)
+        await self.sessions.invalidate(session_id)
 
     async def cache_user_sessions(
         self,
         user_id: str,
         blueprint: str,
         sessions: list[dict],
-        ttl: int = 300,  # 5 minutes
-    ):
+        ttl: int = 300,
+    ) -> None:
         """Cache user's session list (for sidebar)."""
-        key = f"user_sessions:{user_id}:{blueprint}"
-        await self.client.setex(key, ttl, json.dumps(sessions))
+        await self.sessions.cache_user_sessions(user_id, blueprint, sessions, ttl)
 
     async def get_cached_user_sessions(
         self,
@@ -126,42 +95,23 @@ class RedisSentinelClient:
         blueprint: str,
     ) -> list[dict] | None:
         """Get cached user session list."""
-        key = f"user_sessions:{user_id}:{blueprint}"
-        data = await self.client.get(key)
-        if data:
-            return json.loads(data)
-        return None
+        return await self.sessions.get_user_sessions(user_id, blueprint)
 
-    async def invalidate_user_sessions(self, user_id: str, blueprint: str):
+    async def invalidate_user_sessions(self, user_id: str, blueprint: str) -> None:
         """Invalidate user's session list cache."""
-        key = f"user_sessions:{user_id}:{blueprint}"
-        await self.client.delete(key)
+        await self.sessions.invalidate_user_sessions(user_id, blueprint)
 
-    # =====================================================================
-    # Agent State Management
-    # =====================================================================
-
-    async def add_active_agent(self, session_id: str, agent_name: str):
+    async def add_active_agent(self, session_id: str, agent_name: str) -> None:
         """Add agent to session's active agent set."""
-        key = f"session_agents:{session_id}"
-        await self.client.sadd(key, agent_name)
-        # Set expiry on the key
-        await self.client.expire(key, 3600)
+        await self.agents.add_active(session_id, agent_name)
 
     async def get_active_agents(self, session_id: str) -> list[str]:
         """Get list of active agents for session."""
-        key = f"session_agents:{session_id}"
-        agents = await self.client.smembers(key)
-        return list(agents) if agents else []
+        return await self.agents.get_active(session_id)
 
-    async def remove_active_agent(self, session_id: str, agent_name: str):
+    async def remove_active_agent(self, session_id: str, agent_name: str) -> None:
         """Remove agent from session's active set."""
-        key = f"session_agents:{session_id}"
-        await self.client.srem(key, agent_name)
-
-    # =====================================================================
-    # Rate Limiting (Sliding Window)
-    # =====================================================================
+        await self.agents.remove_active(session_id, agent_name)
 
     async def check_rate_limit(
         self,
@@ -169,85 +119,41 @@ class RedisSentinelClient:
         max_requests: int = 60,
         window_seconds: int = 60,
     ) -> bool:
-        """
-        Check if user is within rate limit using sliding window.
-
-        Returns True if allowed, False if rate limited.
-        """
-        key = f"rate_limit:{user_id}"
-        now = time.time()
-        window_start = now - window_seconds
-
-        pipe = self.client.pipeline()
-
-        # Remove old entries
-        pipe.zremrangebyscore(key, 0, window_start)
-
-        # Add current request
-        pipe.zadd(key, {str(now): now})
-
-        # Count requests in window
-        pipe.zcard(key)
-
-        # Set expiry
-        pipe.expire(key, window_seconds)
-
-        results = await pipe.execute()
-        request_count = results[2]  # zcard result
-
-        return request_count <= max_requests
-
-    # =====================================================================
-    # Context Summary Caching
-    # =====================================================================
+        """Check if user is within rate limit using sliding window."""
+        return await self.rate_limiter.check(user_id, max_requests, window_seconds)
 
     async def cache_context_summary(
         self,
         session_id: str,
         summary: str,
         ttl: int = 3600,
-    ):
+    ) -> None:
         """Cache conversation summary for context window."""
-        key = f"context_summary:{session_id}"
-        await self.client.setex(key, ttl, summary)
+        await self.sessions.cache_context_summary(session_id, summary, ttl)
 
     async def get_context_summary(self, session_id: str) -> str | None:
         """Get cached context summary."""
-        key = f"context_summary:{session_id}"
-        return await self.client.get(key)
-
-    # =====================================================================
-    # Batch Operations (Pipeline)
-    # =====================================================================
+        return await self.sessions.get_context_summary(session_id)
 
     async def batch_cache_sessions(
         self,
-        sessions: list[tuple[str, dict, int]],  # (session_id, data, ttl)
-    ):
+        sessions: list[tuple[str, dict, int]],
+    ) -> None:
         """Cache multiple sessions in a single pipeline."""
-        pipe = self.client.pipeline()
-
-        for session_id, data, ttl in sessions:
-            key = f"session:{session_id}"
-            pipe.setex(key, ttl, json.dumps(data))
-
-        await pipe.execute()
-        logger.debug("sessions_batch_cached", count=len(sessions))
+        await self.sessions.batch_cache(sessions)
 
 
-# Global client singleton
 _redis_client: RedisSentinelClient | None = None
 
 
-async def init_redis():
-    """Initialize Redis Sentinel connection (called at app startup)."""
+async def init_redis() -> None:
     global _redis_client
-    _redis_client = RedisSentinelClient()
-    await _redis_client.connect()
+    client = RedisSentinelClient()
+    await client.connect()
+    _redis_client = client
 
 
-async def close_redis():
-    """Close Redis connection (called at app shutdown)."""
+async def close_redis() -> None:
     global _redis_client
     if _redis_client:
         await _redis_client.disconnect()
@@ -255,7 +161,6 @@ async def close_redis():
 
 
 def get_redis_client() -> RedisSentinelClient:
-    """Get global Redis client (must call init_redis first)."""
     if _redis_client is None:
         raise RuntimeError("Redis not initialized. Call init_redis() first.")
     return _redis_client
