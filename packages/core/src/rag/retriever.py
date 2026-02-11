@@ -10,6 +10,7 @@ from typing import Any
 
 import structlog
 
+from ..config import get_settings
 from .embeddings import OllamaEmbeddings, get_embeddings
 from .vector_store import Document, PgVectorStore, SearchResult, get_vector_store
 
@@ -70,21 +71,22 @@ class RAGRetriever:
         self,
         embeddings: OllamaEmbeddings | None = None,
         vector_store: PgVectorStore | None = None,
-        default_k: int = 5,
-        min_score: float = 0.5,  # Increased from 0.3 to filter weak matches
+        default_k: int | None = None,
+        min_score: float | None = None,
     ):
         """Initialize retriever.
 
         Args:
             embeddings: Embeddings service (uses singleton if not provided).
             vector_store: Vector store (uses singleton if not provided).
-            default_k: Default number of results to retrieve.
-            min_score: Minimum similarity score threshold.
+            default_k: Default number of results to retrieve (uses settings if not provided).
+            min_score: Minimum similarity score threshold (uses settings if not provided).
         """
+        settings = get_settings()
         self._embeddings = embeddings
         self._vector_store = vector_store
-        self._default_k = default_k
-        self._min_score = min_score
+        self._default_k = default_k if default_k is not None else settings.rag_default_k
+        self._min_score = min_score if min_score is not None else settings.rag_min_score
         self._logger = logger.bind(service="rag_retriever")
         self._initialized = False
 

@@ -15,6 +15,9 @@ import {
   Loader2,
   FolderOpen,
   File,
+  CheckSquare,
+  Square,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -63,6 +67,7 @@ export default function KnowledgePage() {
   const [scopeInfo, setScopeInfo] = useState<ScopeInfo | null>(null);
   const [currentScope, setCurrentScope] = useState<string>('default');
   const [documents, setDocuments] = useState<DocumentResponse[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -71,6 +76,7 @@ export default function KnowledgePage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteDocDialogOpen, setDeleteDocDialogOpen] = useState(false);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [scopeToDelete, setScopeToDelete] = useState<string | null>(null);
   const [docToDelete, setDocToDelete] = useState<{ id: string; filename: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -104,6 +110,8 @@ export default function KnowledgePage() {
       setLoadingDocs(true);
       const data = await listDocuments(scope, 100);
       setDocuments(data.documents);
+      // Clear selection when loading new scope
+      setSelectedFiles(new Set());
     } catch (err) {
       console.error('Failed to load documents:', err);
       setDocuments([]);
@@ -292,6 +300,73 @@ export default function KnowledgePage() {
       await loadDocuments(currentScope);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete document');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleFileSelection = (filename: string) => {
+    setSelectedFiles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(filename)) {
+        newSet.delete(filename);
+      } else {
+        newSet.add(filename);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const fileGroups = documents.reduce((acc, doc) => {
+      const filename = doc.metadata.filename || 'Unknown';
+      if (!acc[filename]) acc[filename] = [];
+      acc[filename].push(doc);
+      return acc;
+    }, {} as Record<string, DocumentResponse[]>);
+
+    const allFilenames = Object.keys(fileGroups);
+    
+    if (selectedFiles.size === allFilenames.length) {
+      // Deselect all
+      setSelectedFiles(new Set());
+    } else {
+      // Select all
+      setSelectedFiles(new Set(allFilenames));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedFiles.size === 0) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get all document IDs for selected files
+      const fileGroups = documents.reduce((acc, doc) => {
+        const filename = doc.metadata.filename || 'Unknown';
+        if (!acc[filename]) acc[filename] = [];
+        acc[filename].push(doc);
+        return acc;
+      }, {} as Record<string, DocumentResponse[]>);
+
+      const docIdsToDelete: string[] = [];
+      selectedFiles.forEach(filename => {
+        const docs = fileGroups[filename] || [];
+        docs.forEach(doc => docIdsToDelete.push(doc.id));
+      });
+
+      // Delete all selected documents
+      await Promise.all(docIdsToDelete.map(id => deleteDocument(id)));
+
+      setSuccess(`Deleted ${selectedFiles.size} ${selectedFiles.size === 1 ? 'file' : 'files'}`);
+      setBulkDeleteDialogOpen(false);
+      setSelectedFiles(new Set());
+      await loadScopes();
+      await loadDocuments(currentScope);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete documents');
     } finally {
       setLoading(false);
     }
@@ -555,7 +630,46 @@ export default function KnowledgePage() {
 
                       {/* Document List */}
                       <div className="space-y-2">
-                        <h3 className="text-sm font-medium">Uploaded Documents</h3>
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-medium">Uploaded Documents</h3>
+                          {documents.length > 0 && (
+                            <div className="flex items-center gap-2">
+                              {selectedFiles.size > 0 && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => setBulkDeleteDialogOpen(true)}
+                                  disabled={loading}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete {selectedFiles.size} Selected
+                                </Button>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={toggleSelectAll}
+                                disabled={loading}
+                              >
+                                {selectedFiles.size === Object.keys(documents.reduce((acc, doc) => {
+                                  const filename = doc.metadata.filename || 'Unknown';
+                                  acc[filename] = true;
+                                  return acc;
+                                }, {} as Record<string, boolean>)).length ? (
+                                  <>
+                                    <X className="h-4 w-4 mr-2" />
+                                    Deselect All
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckSquare className="h-4 w-4 mr-2" />
+                                    Select All
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                         {loadingDocs ? (
                           <div className="flex items-center justify-center py-8">
                             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -572,47 +686,61 @@ export default function KnowledgePage() {
                                 acc[filename].push(doc);
                                 return acc;
                               }, {} as Record<string, DocumentResponse[]>)
-                            ).map(([filename, docs]) => (
-                              <div
-                                key={filename}
-                                className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <FileText className="h-4 w-4 flex-shrink-0" />
-                                      <p className="text-sm font-medium truncate">{filename}</p>
+                            ).map(([filename, docs]) => {
+                              const isSelected = selectedFiles.has(filename);
+                              
+                              return (
+                                <div
+                                  key={filename}
+                                  className={`p-3 rounded-lg border transition-all ${
+                                    isSelected 
+                                      ? 'bg-primary/5 border-primary/30 shadow-sm' 
+                                      : 'bg-card hover:bg-accent/50'
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={() => toggleFileSelection(filename)}
+                                      className="mt-1"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <FileText className="h-4 w-4 flex-shrink-0" />
+                                        <p className="text-sm font-medium truncate">{filename}</p>
+                                      </div>
+                                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                        <span>{docs.length} {docs.length === 1 ? 'chunk' : 'chunks'}</span>
+                                        {docs[0].metadata.file_type && (
+                                          <>
+                                            <span>•</span>
+                                            <span className="uppercase">{docs[0].metadata.file_type}</span>
+                                          </>
+                                        )}
+                                        {docs[0].metadata.content_hash && (
+                                          <>
+                                            <span>•</span>
+                                            <span className="font-mono">{docs[0].metadata.content_hash.substring(0, 8)}</span>
+                                          </>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                                        {docs[0].content_preview}
+                                      </p>
                                     </div>
-                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                      <span>{docs.length} {docs.length === 1 ? 'chunk' : 'chunks'}</span>
-                                      {docs[0].metadata.file_type && (
-                                        <>
-                                          <span>•</span>
-                                          <span className="uppercase">{docs[0].metadata.file_type}</span>
-                                        </>
-                                      )}
-                                      {docs[0].metadata.content_hash && (
-                                        <>
-                                          <span>•</span>
-                                          <span className="font-mono">{docs[0].metadata.content_hash.substring(0, 8)}</span>
-                                        </>
-                                      )}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                                      {docs[0].content_preview}
-                                    </p>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => confirmDeleteDoc(docs[0].id, filename)}
+                                      disabled={loading}
+                                      className="flex-shrink-0"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
                                   </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => confirmDeleteDoc(docs[0].id, filename)}
-                                    disabled={loading}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         ) : (
                           <div className="text-center py-8 border rounded-lg bg-muted/20">
@@ -690,6 +818,38 @@ export default function KnowledgePage() {
             <Button variant="destructive" onClick={handleDeleteDoc} disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Selected Documents</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedFiles.size} selected {selectedFiles.size === 1 ? 'file' : 'files'}?
+              This will remove all chunks of these documents. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[200px] overflow-y-auto">
+            <ul className="text-sm space-y-1">
+              {Array.from(selectedFiles).map(filename => (
+                <li key={filename} className="flex items-center gap-2">
+                  <FileText className="h-3 w-3" />
+                  {filename}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Delete {selectedFiles.size} {selectedFiles.size === 1 ? 'File' : 'Files'}
             </Button>
           </DialogFooter>
         </DialogContent>

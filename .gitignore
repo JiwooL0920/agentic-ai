@@ -73,6 +73,11 @@ out/
 .npm
 .pnpm-store/
 
+# Playwright test results
+test-results/
+playwright-report/
+.playwright/
+
 # -----------------------------------------------------------------------------
 # Terraform
 # -----------------------------------------------------------------------------

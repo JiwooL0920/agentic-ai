@@ -512,6 +512,60 @@ class PgVectorStore:
 
             return row["count"] if row else 0
 
+    async def list_documents(
+        self, scope: str | None = None, limit: int = 100, offset: int = 0
+    ) -> list[Document]:
+        """List documents from the store.
+
+        Args:
+            scope: Optional scope to filter by.
+            limit: Maximum number of documents to return.
+            offset: Number of documents to skip.
+
+        Returns:
+            List of documents.
+        """
+        if not self._pool:
+            raise VectorStoreError("Connection pool not initialized")
+
+        async with self._pool.acquire() as conn:
+            if scope:
+                query = f"""
+                    SELECT id, content, scope, metadata, embedding
+                    FROM {self._table_name}
+                    WHERE scope = $1
+                    ORDER BY created_at DESC
+                    LIMIT $2 OFFSET $3
+                """
+                rows = await conn.fetch(query, scope, limit, offset)
+            else:
+                query = f"""
+                    SELECT id, content, scope, metadata, embedding
+                    FROM {self._table_name}
+                    ORDER BY created_at DESC
+                    LIMIT $1 OFFSET $2
+                """
+                rows = await conn.fetch(query, limit, offset)
+
+            documents = []
+            for row in rows:
+                # Convert UUID to string and parse JSON metadata
+                metadata = row["metadata"]
+                if isinstance(metadata, str):
+                    import json
+                    metadata = json.loads(metadata)
+                
+                doc = Document(
+                    id=str(row["id"]),  # Convert UUID to string
+                    content=row["content"],
+                    scope=row["scope"],
+                    metadata=metadata if isinstance(metadata, dict) else {},
+                    embedding=row["embedding"],
+                )
+                documents.append(doc)
+
+            return documents
+
 
 # Singleton instance
 _store_instance: PgVectorStore | None = None

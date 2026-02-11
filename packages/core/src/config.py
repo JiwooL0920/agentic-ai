@@ -59,6 +59,14 @@ class Settings(BaseSettings):
     context_window_recent: int = 5
     context_window_summary: int = 5
 
+    # RAG (Retrieval-Augmented Generation)
+    rag_enabled: bool = True
+    rag_min_score: float = 0.5  # Minimum similarity score (0.0-1.0)
+    rag_default_k: int = 5  # Number of documents to retrieve
+    rag_max_context_tokens: int = 4000  # Maximum tokens for RAG context
+    rag_chunk_size: int = 1000  # Default chunk size for documents
+    rag_chunk_overlap: int = 200  # Overlap between chunks
+
     # CORS
     cors_origins: list[str] = ["http://localhost:3000"]
 

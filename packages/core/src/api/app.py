@@ -17,6 +17,7 @@ from redis.exceptions import RedisError
 from ..agents.registry import AgentRegistry
 from ..cache.redis_client import close_redis, init_redis
 from ..config import get_settings
+from ..rag.vector_store import get_vector_store
 from .middleware.request_id import RequestIdMiddleware
 from .routes import agents, blueprints, chat, documents, health, sessions
 
@@ -49,6 +50,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     app.state.settings = settings
     app.state.registry = AgentRegistry(blueprints_path)
+
+    # Initialize vector store connection pool eagerly
+    try:
+        await get_vector_store()
+        logger.info("vector_store_initialized")
+    except Exception as e:
+        logger.warning("vector_store_init_failed", error=str(e))
 
     logger.info(
         "application_ready",

@@ -7,6 +7,7 @@ import structlog
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
+from ...config import get_settings
 from ...rag import (
     Document,
     OllamaEmbeddings,
@@ -78,8 +79,8 @@ class DocumentDeleteResponse(BaseModel):
 async def upload_document(
     file: Annotated[UploadFile, File(...)],
     scope: Annotated[str, Form()] = "default",
-    chunk_size: Annotated[int, Form()] = 1000,
-    chunk_overlap: Annotated[int, Form()] = 200,
+    chunk_size: Annotated[int, Form()] | None = None,
+    chunk_overlap: Annotated[int, Form()] | None = None,
 ) -> DocumentListResponse:
     """
     Upload and index a document for RAG.
@@ -127,7 +128,12 @@ async def upload_document(
 
     content_hash = hashlib.sha256(content).hexdigest()
 
-    chunker = get_chunker(file_ext, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    # Use settings for defaults
+    settings = get_settings()
+    actual_chunk_size = chunk_size if chunk_size is not None else settings.rag_chunk_size
+    actual_chunk_overlap = chunk_overlap if chunk_overlap is not None else settings.rag_chunk_overlap
+
+    chunker = get_chunker(file_ext, chunk_size=actual_chunk_size, chunk_overlap=actual_chunk_overlap)
     chunks = chunker.chunk(text_content)
 
     if not chunks:
@@ -212,16 +218,36 @@ async def upload_document(
 async def list_documents(
     scope: str | None = None,
     limit: int = 100,
+    offset: int = 0,
 ) -> DocumentListResponse:
     """
     List documents in the vector store.
 
-    Optionally filter by scope.
+    Optionally filter by scope with pagination support.
     """
     store: PgVectorStore = await get_vector_store()
 
     try:
+        # Get actual documents
+        documents = await store.list_documents(scope=scope, limit=limit, offset=offset)
+        
+        # Get total count
         count = await store.count(scope=scope)
+        
+        # Convert to response format
+        response_docs = [
+            DocumentResponse(
+                id=doc.id,
+                content_preview=doc.content[:200],
+                scope=doc.scope,
+                metadata=doc.metadata,
+                chunk_count=1,
+            )
+            for doc in documents
+        ]
+        
+        logger.info("documents_listed", scope=scope, count=len(response_docs), total=count)
+        
     except Exception as e:
         logger.error("list_failed", error=str(e))
         raise HTTPException(
@@ -230,7 +256,7 @@ async def list_documents(
         ) from e
 
     return DocumentListResponse(
-        documents=[],
+        documents=response_docs,
         total_count=count,
         scope=scope,
     )

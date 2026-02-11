@@ -25,9 +25,21 @@ const defaultBlueprints: Blueprint[] = [
 ];
 
 const features = [
-  { icon: Brain, title: 'Multi-Agent', desc: 'Specialized AI agents for every task' },
-  { icon: Zap, title: 'Real-time', desc: 'Streaming responses with live updates' },
-  { icon: Shield, title: 'Local-first', desc: 'Powered by Ollama, runs on your hardware' },
+  { 
+    icon: (props: any) => <Brain {...props} suppressHydrationWarning />, 
+    title: 'Multi-Agent', 
+    desc: 'Specialized AI agents for every task' 
+  },
+  { 
+    icon: (props: any) => <Zap {...props} suppressHydrationWarning />, 
+    title: 'Real-time', 
+    desc: 'Streaming responses with live updates' 
+  },
+  { 
+    icon: (props: any) => <Shield {...props} suppressHydrationWarning />, 
+    title: 'Local-first', 
+    desc: 'Powered by Ollama, runs on your hardware' 
+  },
 ];
 
 export default function Home() {

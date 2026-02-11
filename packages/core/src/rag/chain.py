@@ -10,6 +10,7 @@ from typing import Any
 
 import structlog
 
+from ..config import get_settings
 from .retriever import RAGRetriever, RetrievalResult, get_retriever
 
 logger = structlog.get_logger()
@@ -88,7 +89,7 @@ class RAGChain:
         self,
         retriever: RAGRetriever | None = None,
         template: str = DEFAULT_RAG_TEMPLATE,
-        max_context_tokens: int = 4000,
+        max_context_tokens: int | None = None,
         chars_per_token: float = 4.0,
     ):
         """Initialize RAG chain.
@@ -96,12 +97,13 @@ class RAGChain:
         Args:
             retriever: RAG retriever (uses singleton if not provided).
             template: Prompt template with {context} and {query} placeholders.
-            max_context_tokens: Maximum tokens for context.
+            max_context_tokens: Maximum tokens for context (uses settings if not provided).
             chars_per_token: Approximate characters per token for estimation.
         """
+        settings = get_settings()
         self._retriever = retriever
         self._template = template
-        self._max_context_tokens = max_context_tokens
+        self._max_context_tokens = max_context_tokens if max_context_tokens is not None else settings.rag_max_context_tokens
         self._chars_per_token = chars_per_token
         self._logger = logger.bind(service="rag_chain")
         self._initialized = False

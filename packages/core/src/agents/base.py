@@ -31,7 +31,6 @@ from ..tools.registry import get_tool_registry
 logger = structlog.get_logger()
 
 MAX_TOOL_ITERATIONS = 5
-RAG_ENABLED = True
 
 
 @dataclass
@@ -254,7 +253,8 @@ class OllamaAgent(Agent):
             return await self._tracked_sync_response(messages, request_id)
 
     async def _get_rag_augmented_prompt(self, input_text: str) -> str | None:
-        if not RAG_ENABLED or not self.knowledge_scope:
+        settings = get_settings()
+        if not settings.rag_enabled or not self.knowledge_scope:
             self._last_rag_context = None
             return None
 
