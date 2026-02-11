@@ -23,6 +23,7 @@ from ollama import AsyncClient
 
 from ..config import get_settings
 from ..observability import LLMTracker
+from ..rag import get_rag_chain
 from ..tools.base import ToolCall
 from ..tools.executor import ToolExecutor
 from ..tools.registry import get_tool_registry
@@ -30,6 +31,7 @@ from ..tools.registry import get_tool_registry
 logger = structlog.get_logger()
 
 MAX_TOOL_ITERATIONS = 5
+RAG_ENABLED = True
 
 
 @dataclass
@@ -92,11 +94,23 @@ class OllamaAgent(Agent):
         self,
         input_text: str,
         chat_history: list[ConversationMessage],
+        augmented_system_prompt: str | None = None,
     ) -> list[dict[str, Any]]:
+        """Build messages list for Ollama chat.
+
+        Args:
+            input_text: User input text.
+            chat_history: Previous conversation messages.
+            augmented_system_prompt: Optional RAG-augmented system prompt.
+
+        Returns:
+            List of message dicts for Ollama.
+        """
         messages: list[dict[str, Any]] = []
 
-        if self.system_prompt:
-            messages.append({"role": "system", "content": self.system_prompt})
+        system_prompt = augmented_system_prompt or self.system_prompt
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
 
         for msg in chat_history:
             content = msg.content[0].get("text", "") if msg.content else ""
@@ -230,12 +244,38 @@ class OllamaAgent(Agent):
             request_id=request_id,
         )
 
-        messages = self._build_messages(input_text, chat_history)
+        augmented_prompt = await self._get_rag_augmented_prompt(input_text)
+        messages = self._build_messages(input_text, chat_history, augmented_prompt)
 
         if self.streaming:
             return self._tracked_streaming_response(messages, request_id)
         else:
             return await self._tracked_sync_response(messages, request_id)
+
+    async def _get_rag_augmented_prompt(self, input_text: str) -> str | None:
+        if not RAG_ENABLED or not self.knowledge_scope:
+            return None
+
+        try:
+            rag_chain = await get_rag_chain()
+            augmented_prompt, context = await rag_chain.invoke(
+                query=input_text,
+                system_prompt=self.system_prompt or "",
+                knowledge_scope=self.knowledge_scope,
+            )
+
+            if context.has_context:
+                self._logger.info(
+                    "rag_context_applied",
+                    documents_used=len(context.documents),
+                    token_estimate=context.token_estimate,
+                )
+                return augmented_prompt
+
+            return None
+        except Exception as e:
+            self._logger.warning("rag_retrieval_failed", error=str(e))
+            return None
 
     async def _tracked_streaming_response(
         self, messages: list[dict[str, Any]], request_id: str

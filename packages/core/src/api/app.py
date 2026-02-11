@@ -18,7 +18,7 @@ from ..agents.registry import AgentRegistry
 from ..cache.redis_client import close_redis, init_redis
 from ..config import get_settings
 from .middleware.request_id import RequestIdMiddleware
-from .routes import agents, blueprints, chat, health, sessions
+from .routes import agents, blueprints, chat, documents, health, sessions
 
 logger = structlog.get_logger()
 
@@ -109,5 +109,6 @@ def create_app() -> FastAPI:
     app.include_router(agents.router, prefix="/api", tags=["Agents"])
     app.include_router(chat.router, prefix="/api", tags=["Chat"])
     app.include_router(sessions.router, prefix="/api", tags=["Sessions"])
+    app.include_router(documents.router, prefix="/api", tags=["Documents"])
 
     return app
