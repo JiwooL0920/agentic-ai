@@ -1,5 +1,6 @@
 """Chat endpoints with streaming support."""
 
+import asyncio
 import json
 import uuid
 
@@ -10,8 +11,9 @@ from sse_starlette.sse import EventSourceResponse
 from ...orchestrator.supervisor import SupervisorOrchestrator
 from ...repositories.message_repository import MessageRepository
 from ...repositories.session_repository import SessionRepository
-from ...schemas import ChatRequest, ChatResponse
+from ...schemas import CancelResponse, ChatRequest, ChatResponse
 from ...services.chat_service import ChatService
+from ...services.task_manager import get_task_manager
 from ..dependencies import CurrentUser, get_registry
 
 logger = structlog.get_logger()
@@ -102,8 +104,15 @@ async def chat_stream(
         first_message=chat_request.message,
     )
 
+    task_manager = get_task_manager()
+
     async def generate():
         try:
+            # Register this task for cancellation
+            current_task = asyncio.current_task()
+            if current_task:
+                task_manager.register_task(session_id, current_task)
+
             async for chunk in service.process_chat_streaming(
                 message=chat_request.message,
                 session_id=session_id,
@@ -119,6 +128,14 @@ async def chat_stream(
                 "data": json.dumps({"session_id": session_id}),
             }
 
+        except asyncio.CancelledError:
+            logger.info("stream_cancelled_by_user", session_id=session_id)
+            yield {
+                "event": "cancelled",
+                "data": json.dumps({"message": "Response cancelled by user"}),
+            }
+            raise  # Re-raise to properly close the connection
+
         except Exception as e:
             logger.error("stream_error", error=str(e))
             yield {
@@ -127,3 +144,43 @@ async def chat_stream(
             }
 
     return EventSourceResponse(generate())
+
+
+@router.post("/blueprints/{blueprint}/sessions/{session_id}/cancel", response_model=CancelResponse)
+async def cancel_chat(
+    blueprint: str,
+    session_id: str,
+    user: CurrentUser,
+) -> CancelResponse:
+    """
+    Cancel an active streaming chat request.
+
+    This endpoint cancels any running agent execution for the given session.
+    The streaming response will receive a 'cancelled' event before closing.
+
+    Args:
+        blueprint: Blueprint name
+        session_id: Session identifier
+        user: Current authenticated user
+
+    Returns:
+        Status of the cancellation operation
+    """
+    logger.info(
+        "cancel_request",
+        blueprint=blueprint,
+        session_id=session_id,
+        user_id=user.user_id,
+    )
+
+    task_manager = get_task_manager()
+    cancelled = task_manager.cancel_task(session_id)
+
+    if cancelled:
+        return CancelResponse(status="cancelled", session_id=session_id)
+    else:
+        return CancelResponse(
+            status="not_found",
+            session_id=session_id,
+            message="No active task found for this session",
+        )

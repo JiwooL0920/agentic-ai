@@ -49,7 +49,7 @@ make blueprint-deploy NAME=devassist
 make dev
 
 # Or start individually:
-make dev-backend   # FastAPI on port 8001 (uses venv)
+make dev-backend   # FastAPI on port 8000 (uses venv)
 make dev-frontend  # Next.js on port 3000
 
 # Optional: Real-time GPU metrics (Mac only, requires sudo)
@@ -59,7 +59,7 @@ make dev-gpu-metrics  # Metrics server on port 8002
 ### Access the Platform
 
 - **Frontend:** http://localhost:3000
-- **Backend API:** http://localhost:8001/docs
+- **Backend API:** http://localhost:8000/docs
 - **GPU Metrics:** http://localhost:8002/gpu (if running `make dev-gpu-metrics`)
 - **Grafana:** http://grafana.local (if configured)
 

@@ -30,10 +30,11 @@ data:
   AWS_SECRET_ACCESS_KEY: "test"
 
   # PostgreSQL (native ClusterIP)
-  POSTGRES_HOST: "postgres-rw.database.svc.cluster.local"
+  POSTGRES_HOST: "postgresql-cluster-rw.cnpg-system.svc.cluster.local"
   POSTGRES_PORT: "5432"
   POSTGRES_DB: "agentic"
-  POSTGRES_USER: "postgres"
+  POSTGRES_USER: "app"
+  POSTGRES_PASSWORD: "8tAb56JrC5y5o6LDfnJ3LJhC2XxeuRfYlPVYUNedZZSbYTVQYFVK9qghR5QKWWGf"
 
   # Redis Sentinel (native ClusterIP)
   REDIS_HOST: "redis-sentinel.redis-sentinel.svc.cluster.local"
@@ -65,7 +66,7 @@ spec:
         - name: core
           image: agentic-ai-core
           ports:
-            - containerPort: 8001
+            - containerPort: 8000
               name: http
           envFrom:
             - configMapRef:
@@ -80,13 +81,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: 8001
+              port: 8000
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /health
-              port: 8001
+              port: 8000
             initialDelaySeconds: 10
             periodSeconds: 5
 ---
@@ -102,8 +103,8 @@ spec:
     app: agentic-ai-core
   ports:
     - protocol: TCP
-      port: 8001
-      targetPort: 8001
+      port: 8000
+      targetPort: 8000
       name: http
   type: ClusterIP
 ---
@@ -120,4 +121,4 @@ spec:
       kind: Rule
       services:
         - name: agentic-ai-core
-          port: 8001
+          port: 8000

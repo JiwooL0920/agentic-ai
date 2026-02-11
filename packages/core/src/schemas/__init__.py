@@ -8,7 +8,7 @@ from .agents import (
     AgentToggleResponse,
 )
 from .blueprints import BlueprintInfo
-from .chat import ChatRequest, ChatResponse
+from .chat import CancelResponse, ChatRequest, ChatResponse
 from .common import (
     QueryResult,
     StreamChunkContent,
@@ -36,6 +36,7 @@ __all__ = [
     # Blueprints
     "BlueprintInfo",
     # Chat
+    "CancelResponse",
     "ChatRequest",
     "ChatResponse",
     # Common

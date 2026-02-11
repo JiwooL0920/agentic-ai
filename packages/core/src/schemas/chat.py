@@ -18,3 +18,11 @@ class ChatResponse(BaseModel):
     response: str
     agent: str
     session_id: str
+
+
+class CancelResponse(BaseModel):
+    """Cancel operation response."""
+
+    status: str  # "cancelled" or "not_found"
+    session_id: str
+    message: str | None = None

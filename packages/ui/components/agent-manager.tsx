@@ -69,7 +69,7 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
 
   const fetchAgentsStatus = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:8001';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:8000';
       
       const effectiveSessionId = sessionId || 'default';
       const url = `${apiUrl}/api/blueprints/${blueprint}/agents/status?session_id=${effectiveSessionId}&t=${Date.now()}`;
@@ -109,7 +109,7 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
 
     try {
       const effectiveSessionId = sessionId || 'default';
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:8001';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:8000';
       const response = await fetch(
         `${apiUrl}/api/blueprints/${blueprint}/agents/${agentId}/toggle`,
         {

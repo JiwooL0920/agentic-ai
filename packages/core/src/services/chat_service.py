@@ -7,6 +7,7 @@ Extracted from api/routes/chat.py to enable:
 - Clean separation of concerns
 """
 
+import asyncio
 from collections.abc import AsyncIterable
 from typing import Any
 from uuid import uuid4
@@ -19,6 +20,7 @@ from ..cache.redis_client import get_redis_client
 from ..orchestrator.supervisor import SupervisorOrchestrator
 from ..repositories.message_repository import MessageRepository
 from ..repositories.session_repository import SessionRepository
+from .task_manager import get_task_manager
 
 logger = structlog.get_logger()
 
@@ -138,6 +140,9 @@ class ChatService:
 
         Yields:
             Stream chunks with type, content, agent, etc.
+
+        Raises:
+            asyncio.CancelledError: If the task is cancelled
         """
         self._logger.info(
             "processing_chat_streaming",
@@ -171,6 +176,24 @@ class ChatService:
                     accumulated_response=accumulated_response,
                     active_agent=active_agent,
                 )
+
+        except asyncio.CancelledError:
+            self._logger.info(
+                "streaming_cancelled",
+                session_id=session_id,
+                accumulated_length=len(accumulated_response),
+            )
+            # Persist partial response if available
+            if accumulated_response:
+                await self._persist_streaming_response(
+                    session_id=session_id,
+                    user_id=user_id,
+                    message=message,
+                    accumulated_response=accumulated_response + "\n\n[Response cancelled by user]",
+                    active_agent=active_agent,
+                )
+            yield {"type": "cancelled", "message": "Response cancelled by user"}
+            raise  # Re-raise to signal cancellation
 
         except Exception as e:
             self._logger.error("streaming_error", error=str(e))

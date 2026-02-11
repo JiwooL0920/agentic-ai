@@ -9,7 +9,7 @@ RESET := \033[0m
 
 PYTHON := python3
 PIP := $(PYTHON) -m pip
-PORT ?= 8001
+PORT ?= 8000
 
 help:
 	@echo -e "$(BLUE)Agentic AI - Backend (FastAPI)$(RESET)"

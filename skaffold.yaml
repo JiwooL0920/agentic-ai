@@ -1,13 +1,12 @@
-apiVersion: skaffold/v4beta11
+apiVersion: skaffold/v4beta6
 kind: Config
 metadata:
   name: agentic-ai
 
 build:
-  # Cleanup old images after each build to prevent layer accumulation
+  # Note: To cleanup old images, run: make clean-docker or make clean-kind-images
   local:
     useBuildkit: true
-    prune: true              # Prune intermediate layers after build
     concurrency: 1           # Sequential builds to reduce disk thrashing
     push: false              # Never push to registry (local Kind cluster)
     tryImportMissing: true   # Skip build if image with same tag exists
@@ -39,11 +38,11 @@ portForward:
   - resourceType: service
     resourceName: agentic-ai-core
     namespace: agentic-ai
-    port: 8001
-    localPort: 8001
+    port: 8000
+    localPort: 8000
 
 ---
-apiVersion: skaffold/v4beta11
+apiVersion: skaffold/v4beta6
 kind: Config
 metadata:
   name: agentic-ai-full
@@ -53,7 +52,6 @@ requires:
 build:
   local:
     useBuildkit: true
-    prune: true
     concurrency: 1
     push: false
     tryImportMissing: true

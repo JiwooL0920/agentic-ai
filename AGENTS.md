@@ -21,7 +21,7 @@ This guide provides coding standards and patterns for agentic AI systems working
 make setup                  # Install all dependencies + create Python venv
 
 # Development
-make dev                    # Start both backend (8001) and frontend (3000)
+make dev                    # Start both backend (8000) and frontend (3000)
 make dev-backend            # Backend only (uses venv)
 make dev-frontend           # Frontend only
 
@@ -49,7 +49,7 @@ make clean-all              # Deep clean (includes node_modules)
 ```bash
 # Development
 cd packages/core
-make dev                    # Start FastAPI server on port 8001
+make dev                    # Start FastAPI server on port 8000
 
 # Testing
 make test                   # Run all tests with pytest
@@ -336,7 +336,7 @@ Button.displayName = 'Button';
 ### API Calls
 
 ```typescript
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Streaming responses
 const response = await fetch(`${apiUrl}/api/blueprints/${blueprint}/chat/stream`, {
@@ -529,7 +529,7 @@ REDIS_URL=redis://localhost:6379/0
 ### Frontend (.env.local in packages/ui)
 
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:8001
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
 ## Git Conventions
@@ -546,7 +546,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8001
 
 3. **LocalStack:** Requires Kind cluster `dev-services-amer` running with LocalStack deployed
 
-4. **Port conflicts:** Backend uses 8001, frontend uses 3000. Check if ports are available.
+4. **Port conflicts:** Backend uses 8000, frontend uses 3000. Check if ports are available.
 
 5. **Async everywhere:** Backend is fully async. Don't use blocking I/O.
 
@@ -568,7 +568,7 @@ The agent configuration is managed by the orchestration system you're using (e.g
 | Format code | `make format` |
 | Check quality | `make check` |
 | Deploy blueprint | `make blueprint-deploy NAME=devassist` |
-| View API docs | http://localhost:8001/docs |
+| View API docs | http://localhost:8000/docs |
 | View frontend | http://localhost:3000 |
 
 ---

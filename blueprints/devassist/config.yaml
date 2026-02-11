@@ -36,7 +36,7 @@ knowledge_base:
   chunk_overlap: 50
 
 api:
-  port: 8001
+  port: 8000
   rate_limit: 100
 
 storage:

@@ -19,7 +19,7 @@ help:
 	@echo "Setup & Development:"
 	@echo "  make setup           - Install all dependencies"
 	@echo "  make dev             - Start all development servers"
-	@echo "  make dev-backend     - Start backend only (port 8001)"
+	@echo "  make dev-backend     - Start backend only (port 8000)"
 	@echo "  make dev-frontend    - Start frontend only (port 3000)"
 	@echo "  make dev-gpu-metrics - Start Mac GPU metrics server (port 8002, requires sudo)"
 	@echo "  make dev-k8s         - Deploy backend to Kind with hot-reload (Skaffold)"
@@ -138,9 +138,9 @@ ollama-logs:
 # =============================================================================
 dev:
 	@echo -e "$(BLUE)Starting development servers...$(RESET)"
-	@echo "Backend:  http://localhost:8001"
+	@echo "Backend:  http://localhost:8000"
 	@echo "Frontend: http://localhost:3000"
-	@echo "API Docs: http://localhost:8001/docs"
+	@echo "API Docs: http://localhost:8000/docs"
 	@echo ""
 	@echo -e "$(YELLOW)Press Ctrl+C to stop all servers$(RESET)"
 	@if [ ! -d "venv" ]; then \
@@ -175,7 +175,7 @@ dev-gpu-metrics:
 
 dev-k8s:
 	@echo -e "$(BLUE)Starting Kubernetes development mode (backend only)...$(RESET)"
-	@echo "API: http://api.local or http://localhost:8001"
+	@echo "API: http://api.local or http://localhost:8000"
 	@echo "Docs: http://api.local/docs"
 	@echo ""
 	@echo "File sync enabled - Python changes auto-reload"
@@ -193,7 +193,7 @@ dev-k8s:
 dev-k8s-full:
 	@echo -e "$(BLUE)Starting Kubernetes development mode (backend + frontend)...$(RESET)"
 	@echo "Frontend: http://app.local or http://localhost:3000"
-	@echo "API: http://api.local or http://localhost:8001"
+	@echo "API: http://api.local or http://localhost:8000"
 	@echo "Docs: http://api.local/docs"
 	@echo ""
 	@echo "File sync enabled - Python and TypeScript changes auto-reload"

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, Send, Loader2, Sparkles, MessageSquare, Code, FileQuestion, Lightbulb, Database, BookOpen, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Sparkles, MessageSquare, Code, FileQuestion, Lightbulb, Database, BookOpen, ExternalLink, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -113,6 +113,32 @@ export default function ChatPage() {
     adjustTextareaHeight();
   }, [input, adjustTextareaHeight]);
 
+  const handleCancel = async () => {
+    if (!sessionId) return;
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+    try {
+      // Cancel on backend
+      await fetch(
+        `${apiUrl}/api/blueprints/${blueprint}/sessions/${sessionId}/cancel`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+
+      // Abort frontend connection
+      abortControllerRef.current?.abort();
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to cancel request:', error);
+      // Still abort the frontend connection
+      abortControllerRef.current?.abort();
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -130,7 +156,7 @@ export default function ChatPage() {
     setInput('');
     setIsLoading(true);
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
     try {
       const response = await fetch(
@@ -611,18 +637,26 @@ export default function ChatPage() {
               rows={1}
               className="flex-1 resize-none bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 max-h-[200px]"
             />
-            <Button 
-              type="submit" 
-              disabled={isLoading || !input.trim()}
-              size="icon"
-              className="h-10 w-10 rounded-xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 disabled:shadow-none transition-all"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
+            {isLoading ? (
+              <Button 
+                type="button"
+                onClick={handleCancel}
+                size="icon"
+                variant="destructive"
+                className="h-10 w-10 rounded-xl shadow-lg hover:shadow-xl transition-all"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button 
+                type="submit" 
+                disabled={!input.trim()}
+                size="icon"
+                className="h-10 w-10 rounded-xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 disabled:shadow-none transition-all"
+              >
                 <Send className="h-4 w-4" />
-              )}
-            </Button>
+              </Button>
+            )}
           </div>
           <p className="text-xs text-muted-foreground text-center mt-2">
             AI responses may be inaccurate. Please verify important information.

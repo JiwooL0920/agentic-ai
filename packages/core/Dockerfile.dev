@@ -22,7 +22,7 @@ COPY blueprints/devassist/config.yaml /app/blueprints/devassist/config.yaml
 COPY blueprints/devassist/knowledge/ /app/blueprints/devassist/knowledge/
 
 # Expose port
-EXPOSE 8001
+EXPOSE 8000
 
 # Run with auto-reload using factory pattern
-CMD ["uvicorn", "src.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+CMD ["uvicorn", "src.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--reload"]

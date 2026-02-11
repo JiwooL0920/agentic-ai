@@ -108,3 +108,43 @@ class TestChatRequestValidation:
         )
         # Should either succeed or fail gracefully, not crash
         assert response.status_code in [200, 413, 422, 500]
+
+
+class TestChatCancellation:
+    """Tests for chat cancellation functionality."""
+
+    def test_cancel_endpoint_exists(self, test_app: TestClient) -> None:
+        """Test that cancel endpoint is accessible."""
+        response = test_app.post(
+            "/api/blueprints/test-blueprint/sessions/test-session/cancel"
+        )
+        assert response.status_code == 200
+
+    def test_cancel_nonexistent_task(self, test_app: TestClient) -> None:
+        """Test cancelling a task that doesn't exist."""
+        response = test_app.post(
+            "/api/blueprints/test-blueprint/sessions/nonexistent-session/cancel"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "not_found"
+        assert data["session_id"] == "nonexistent-session"
+        assert "message" in data
+
+    def test_cancel_response_schema(self, test_app: TestClient) -> None:
+        """Test that cancel endpoint returns correct schema."""
+        # Cancel a non-existent session
+        response = test_app.post(
+            "/api/blueprints/test-blueprint/sessions/test-session-xyz/cancel"
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Verify response has correct structure
+        assert "status" in data
+        assert "session_id" in data
+        assert data["session_id"] == "test-session-xyz"
+        
+        # For non-existent task, should return not_found
+        assert data["status"] in ["not_found", "cancelled"]
