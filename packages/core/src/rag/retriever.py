@@ -71,7 +71,7 @@ class RAGRetriever:
         embeddings: OllamaEmbeddings | None = None,
         vector_store: PgVectorStore | None = None,
         default_k: int = 5,
-        min_score: float = 0.3,
+        min_score: float = 0.5,  # Increased from 0.3 to filter weak matches
     ):
         """Initialize retriever.
 

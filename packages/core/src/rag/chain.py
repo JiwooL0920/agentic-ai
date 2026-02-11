@@ -154,7 +154,11 @@ class RAGChain:
         )
 
         if not result.documents:
-            self._logger.info("no_documents_found", query=query[:100])
+            self._logger.info(
+                "no_documents_found", 
+                query=query[:100],
+                knowledge_scope=knowledge_scope,
+            )
             return RAGContext(
                 context_text="",
                 documents=[],

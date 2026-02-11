@@ -464,7 +464,12 @@ export default function ChatPage() {
                     >
                       <span className="flex items-center gap-2 text-xs font-medium">
                         <BookOpen className="h-4 w-4" />
-                        View {message.ragSources.length} Knowledge {message.ragSources.length === 1 ? 'Source' : 'Sources'}
+                        View {(() => {
+                          const uniqueFiles = new Set(message.ragSources?.map(s => s.filename) || []);
+                          const fileCount = uniqueFiles.size;
+                          const chunkCount = message.ragSources?.length || 0;
+                          return `${fileCount} ${fileCount === 1 ? 'File' : 'Files'} (${chunkCount} ${chunkCount === 1 ? 'chunk' : 'chunks'})`;
+                        })()}
                       </span>
                       {expandedSources.has(message.id) ? (
                         <ChevronUp className="h-4 w-4" />
@@ -475,31 +480,84 @@ export default function ChatPage() {
                     
                     {expandedSources.has(message.id) && (
                       <div className="space-y-2 animate-in slide-in-from-top-2">
-                        {message.ragSources.map((source, idx) => (
-                          <div 
-                            key={idx}
-                            className="p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <ExternalLink className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-                                <span className="text-xs font-medium truncate">
-                                  {source.filename || `Document ${idx + 1}`}
-                                </span>
+                        {(() => {
+                          // Group sources by filename
+                          const grouped = (message.ragSources || []).reduce((acc, source) => {
+                            const filename = source.filename || 'Unknown';
+                            if (!acc[filename]) {
+                              acc[filename] = [];
+                            }
+                            acc[filename].push(source);
+                            return acc;
+                          }, {} as Record<string, typeof message.ragSources>);
+
+                          return Object.entries(grouped).map(([filename, sources]) => {
+                            const bestScore = Math.max(...sources.map(s => s.score || 0));
+                            const avgScore = sources.reduce((sum, s) => sum + (s.score || 0), 0) / sources.length;
+                            const isWeakMatch = bestScore < 0.5;
+
+                            return (
+                              <div 
+                                key={filename}
+                                className={`p-3 rounded-lg border transition-colors ${
+                                  isWeakMatch 
+                                    ? 'bg-yellow-500/5 border-yellow-500/20 hover:bg-yellow-500/10' 
+                                    : 'bg-muted/30 hover:bg-muted/50'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <ExternalLink className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                                    <div className="flex-1 min-w-0">
+                                      <span className="text-xs font-medium truncate block">
+                                        {filename}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {sources.length} {sources.length === 1 ? 'chunk' : 'chunks'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1">
+                                    <Badge 
+                                      variant="outline" 
+                                      className={`text-xs ${isWeakMatch ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-700' : ''}`}
+                                    >
+                                      {Math.round(bestScore * 100)}% best
+                                    </Badge>
+                                    {sources.length > 1 && (
+                                      <span className="text-xs text-muted-foreground">
+                                        {Math.round(avgScore * 100)}% avg
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                {isWeakMatch && (
+                                  <p className="text-xs text-yellow-700 dark:text-yellow-600 mb-2 flex items-start gap-1">
+                                    <span>⚠️</span>
+                                    <span>Weak match - consider uploading more relevant documents</span>
+                                  </p>
+                                )}
+                                {sources[0].content && (
+                                  <details className="text-xs text-muted-foreground mt-2">
+                                    <summary className="cursor-pointer hover:text-foreground">
+                                      Show content preview
+                                    </summary>
+                                    <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                                      {sources.slice(0, 3).map((source, idx) => (
+                                        <p key={idx} className="line-clamp-2 pl-2 border-l-2 border-muted">
+                                          {source.content}
+                                        </p>
+                                      ))}
+                                      {sources.length > 3 && (
+                                        <p className="italic">+{sources.length - 3} more chunks...</p>
+                                      )}
+                                    </div>
+                                  </details>
+                                )}
                               </div>
-                              {source.score && (
-                                <Badge variant="outline" className="text-xs">
-                                  {Math.round(source.score * 100)}% match
-                                </Badge>
-                              )}
-                            </div>
-                            {source.content && (
-                              <p className="text-xs text-muted-foreground line-clamp-3 mt-1">
-                                {source.content}
-                              </p>
-                            )}
-                          </div>
-                        ))}
+                            );
+                          });
+                        })()}
                       </div>
                     )}
                   </div>
