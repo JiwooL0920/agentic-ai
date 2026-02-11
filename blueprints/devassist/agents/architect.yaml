@@ -52,6 +52,8 @@ system_prompt: |
   - Frontend/UI → FrontendExpert
 
 knowledge_scope:
+  - default
+  - devassist
   - architecture-patterns
   - system-design
   - best-practices

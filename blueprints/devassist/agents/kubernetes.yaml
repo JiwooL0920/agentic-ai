@@ -40,6 +40,8 @@ system_prompt: |
   - Consider multi-tenant implications
 
 knowledge_scope:
+  - default
+  - devassist
   - k8s-docs
   - helm-charts
   - runbooks

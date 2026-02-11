@@ -6,13 +6,14 @@ import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, Send, Loader2, Sparkles, MessageSquare, Code, FileQuestion, Lightbulb } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Sparkles, MessageSquare, Code, FileQuestion, Lightbulb, Database, BookOpen, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { AgentManager } from '@/components/agent-manager';
 import { SystemStats } from '@/components/system-stats';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const SyntaxHighlighter = dynamic(
   () => import('react-syntax-highlighter').then((mod) => mod.Prism),
@@ -21,11 +22,19 @@ const SyntaxHighlighter = dynamic(
 
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 
+interface RAGSource {
+  filename?: string;
+  score?: number;
+  content?: string;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   agent?: string;
+  ragSources?: RAGSource[];
+  documentsUsed?: number;
 }
 
 const suggestions = [
@@ -44,6 +53,7 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastUserMessageRef = useRef<HTMLDivElement>(null);
@@ -151,6 +161,8 @@ export default function ChatPage() {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: '',
+        ragSources: [],
+        documentsUsed: 0,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -164,12 +176,34 @@ export default function ChatPage() {
           const lines = chunk.split('\n');
 
           for (const line of lines) {
-            if (line.startsWith('data: ')) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine.startsWith('event:')) {
+              continue; // Skip empty lines and event type lines
+            }
+            
+            if (trimmedLine.startsWith('data: ')) {
               try {
-                const data = JSON.parse(line.slice(6));
+                const jsonStr = trimmedLine.slice(6);
+                if (!jsonStr) continue;
+                
+                const data = JSON.parse(jsonStr);
+                
+                // Debug all chunk types
+                console.log('[SSE Chunk]', data.type, data);
+                
                 if (data.type === 'metadata') {
                   assistantMessage.agent = data.agent;
                   if (data.session_id) setSessionId(data.session_id);
+                } else if (data.type === 'rag_context') {
+                  // Handle RAG context metadata
+                  console.log('🔍 RAG Context received:', data.documents_used, 'documents');
+                  assistantMessage.documentsUsed = data.documents_used;
+                  assistantMessage.ragSources = data.sources || [];
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantMessage.id ? { ...assistantMessage } : m
+                    )
+                  );
                 } else if (data.type === 'content') {
                   assistantMessage.content += data.content;
                   setMessages((prev) =>
@@ -179,7 +213,10 @@ export default function ChatPage() {
                   );
                 }
               } catch (parseError) {
-                if (parseError instanceof SyntaxError) continue;
+                if (parseError instanceof SyntaxError) {
+                  console.warn('JSON parse error, skipping line:', trimmedLine);
+                  continue;
+                }
                 throw parseError;
               }
             }
@@ -251,6 +288,18 @@ export default function ChatPage() {
     }
   };
 
+  const toggleSources = (messageId: string) => {
+    setExpandedSources(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  };
+
   return (
     <div className="flex flex-col h-screen bg-background">
       <header className="border-b border-border/50 px-4 py-3 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
@@ -274,6 +323,20 @@ export default function ChatPage() {
           </div>
           <div className="flex items-center gap-3">
             <SystemStats />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href={`/${blueprint}/knowledge`}>
+                    <Button variant="ghost" size="icon" className="hover:bg-primary/10">
+                      <Database className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Manage Knowledge Base</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <AgentManager blueprint={blueprint} sessionId={sessionId} />
           </div>
         </div>
@@ -328,14 +391,34 @@ export default function ChatPage() {
                     : 'message-assistant rounded-bl-md'
                 }`}
               >
-                {message.agent && (
-                  <Badge 
-                    variant="outline" 
-                    className="mb-2 text-xs bg-primary/10 text-primary border-primary/20"
-                  >
-                    {message.agent}
-                  </Badge>
-                )}
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  {message.agent && (
+                    <Badge 
+                      variant="outline" 
+                      className="text-xs bg-primary/10 text-primary border-primary/20"
+                    >
+                      {message.agent}
+                    </Badge>
+                  )}
+                  {(message.documentsUsed ?? 0) > 0 && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge 
+                            variant="outline" 
+                            className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 cursor-help"
+                          >
+                            <BookOpen className="h-3 w-3 mr-1" />
+                            {message.documentsUsed} {message.documentsUsed === 1 ? 'source' : 'sources'}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Response augmented with knowledge base context</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
                 <div className="prose prose-sm dark:prose-invert max-w-none">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
@@ -370,6 +453,57 @@ export default function ChatPage() {
                     {message.content}
                   </ReactMarkdown>
                 </div>
+                
+                {message.ragSources && message.ragSources.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleSources(message.id)}
+                      className="w-full justify-between hover:bg-accent/50 mb-2"
+                    >
+                      <span className="flex items-center gap-2 text-xs font-medium">
+                        <BookOpen className="h-4 w-4" />
+                        View {message.ragSources.length} Knowledge {message.ragSources.length === 1 ? 'Source' : 'Sources'}
+                      </span>
+                      {expandedSources.has(message.id) ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                    
+                    {expandedSources.has(message.id) && (
+                      <div className="space-y-2 animate-in slide-in-from-top-2">
+                        {message.ragSources.map((source, idx) => (
+                          <div 
+                            key={idx}
+                            className="p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <ExternalLink className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                                <span className="text-xs font-medium truncate">
+                                  {source.filename || `Document ${idx + 1}`}
+                                </span>
+                              </div>
+                              {source.score && (
+                                <Badge variant="outline" className="text-xs">
+                                  {Math.round(source.score * 100)}% match
+                                </Badge>
+                              )}
+                            </div>
+                            {source.content && (
+                              <p className="text-xs text-muted-foreground line-clamp-3 mt-1">
+                                {source.content}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {message.role === 'user' && (

@@ -43,6 +43,8 @@ system_prompt: |
   - Use workspaces or separate state files per environment
 
 knowledge_scope:
+  - default
+  - devassist
   - terraform-docs
   - aws-provider
   - module-registry

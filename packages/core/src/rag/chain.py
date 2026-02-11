@@ -5,7 +5,7 @@ Builds context from retrieved documents and augments agent prompts
 with relevant information.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import structlog
@@ -41,12 +41,14 @@ class RAGContext:
         documents: Source documents used.
         query: Original query.
         token_estimate: Approximate token count.
+        scores: Similarity scores for each document.
     """
 
     context_text: str
     documents: list[Any]  # Document type from vector_store
     query: str
     token_estimate: int
+    scores: list[float] = field(default_factory=list)
 
     @property
     def has_context(self) -> bool:
@@ -158,12 +160,14 @@ class RAGChain:
                 documents=[],
                 query=query,
                 token_estimate=0,
+                scores=[],
             )
 
         # Build context with token limit
         context_parts: list[str] = []
         total_chars = 0
         included_docs: list[Any] = []
+        included_scores: list[float] = []
 
         for doc, score in zip(result.documents, result.scores, strict=True):
             # Format document chunk
@@ -178,11 +182,13 @@ class RAGChain:
                     truncated = doc_text[:remaining_chars] + "..."
                     context_parts.append(truncated)
                     included_docs.append(doc)
+                    included_scores.append(score)
                 break
 
             context_parts.append(doc_text)
             total_chars += doc_chars
             included_docs.append(doc)
+            included_scores.append(score)
 
         context_text = "\n\n---\n\n".join(context_parts)
         token_estimate = int(len(context_text) / self._chars_per_token)
@@ -199,6 +205,7 @@ class RAGChain:
             documents=included_docs,
             query=query,
             token_estimate=token_estimate,
+            scores=included_scores,
         )
 
     def _format_document(

@@ -50,6 +50,8 @@ system_prompt: |
   - Advise on backup strategies before modifications
 
 knowledge_scope:
+  - default
+  - devassist
   - aws-docs
   - boto3-reference
   - cloudformation-templates

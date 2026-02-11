@@ -63,6 +63,8 @@ system_prompt: |
   You: "This requires both Python and infrastructure expertise. Let me consult with PythonExpert about FastAPI deployment best practices, and then KubernetesExpert or TerraformExpert about the infrastructure setup. Which infrastructure are you using - Kubernetes, cloud VMs, or something else?"
 
 knowledge_scope:
+  - default
+  - devassist
   - agent-coordination
   - query-analysis
 

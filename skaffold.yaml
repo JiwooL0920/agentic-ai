@@ -4,11 +4,21 @@ metadata:
   name: agentic-ai
 
 build:
+  # Cleanup old images after each build to prevent layer accumulation
+  local:
+    useBuildkit: true
+    prune: true              # Prune intermediate layers after build
+    concurrency: 1           # Sequential builds to reduce disk thrashing
+    push: false              # Never push to registry (local Kind cluster)
+    tryImportMissing: true   # Skip build if image with same tag exists
+  tagPolicy:
+    inputDigest: {}          # Hash of source files - enables build avoidance
   artifacts:
     - image: agentic-ai-core
       context: .
       docker:
         dockerfile: packages/core/Dockerfile.dev
+        noCache: false  # Use cache for faster builds
       sync:
         manual:
           - src: "packages/core/src/**/*.py"
@@ -41,13 +51,19 @@ requires:
   - configs: ["agentic-ai"]
 
 build:
+  local:
+    useBuildkit: true
+    prune: true
+    concurrency: 1
+    push: false
+    tryImportMissing: true
+  tagPolicy:
+    inputDigest: {}
   artifacts:
     - image: agentic-ai-ui
       context: .
       docker:
         dockerfile: packages/ui/Dockerfile.dev
-        buildArgs:
-          CACHE_BUST: "1770311152"
       sync:
         manual:
           - src: "packages/ui/app/**/*"

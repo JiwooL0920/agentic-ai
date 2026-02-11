@@ -15,11 +15,9 @@ class TestBlueprintEndpoints:
         assert response.status_code == 200
         data = response.json()
         
-        # Should return a list of blueprints
+        # Endpoint returns list of blueprint name strings
         assert isinstance(data, list)
-        # Test blueprint should be present (from fixtures)
-        blueprint_names = [b["name"] for b in data]
-        assert "test-blueprint" in blueprint_names
+        assert "test-blueprint" in data
 
     def test_get_blueprint_details(self, test_app: TestClient) -> None:
         """Test getting details for a specific blueprint."""
@@ -27,7 +25,8 @@ class TestBlueprintEndpoints:
         assert response.status_code == 200
         data = response.json()
         
-        assert data["name"] == "test-blueprint"
+        # name is title-cased, slug is the original identifier
+        assert data["slug"] == "test-blueprint"
         assert "agents" in data
         assert "description" in data
 

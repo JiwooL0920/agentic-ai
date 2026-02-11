@@ -33,7 +33,7 @@ def mock_ollama_client() -> Generator[MagicMock, None, None]:
 
 
 @pytest.fixture
-def mock_redis() -> Generator[MagicMock, None, None]:
+def mock_redis() -> Generator[dict, None, None]:
     """Mock Redis client for tests."""
     with patch("src.cache.redis_client.init_redis", new_callable=AsyncMock) as init_mock:
         with patch(
@@ -42,8 +42,31 @@ def mock_redis() -> Generator[MagicMock, None, None]:
             with patch(
                 "src.cache.redis_client.get_redis_client"
             ) as get_mock:
-                get_mock.return_value = MagicMock()
+                redis_mock = MagicMock()
+                # Session caching methods
+                redis_mock.get_cached_session = AsyncMock(return_value=None)
+                redis_mock.cache_session = AsyncMock()
+                redis_mock.invalidate_session = AsyncMock()
+                # User sessions caching methods
+                redis_mock.get_cached_user_sessions = AsyncMock(return_value=None)
+                redis_mock.cache_user_sessions = AsyncMock()
+                redis_mock.invalidate_user_sessions = AsyncMock()
+                get_mock.return_value = redis_mock
                 yield {"init": init_mock, "close": close_mock, "get": get_mock}
+
+
+@pytest.fixture
+def mock_dynamodb() -> Generator[MagicMock, None, None]:
+    """Mock DynamoDB client for tests."""
+    with patch("src.repositories.dynamodb_client.get_dynamodb_client") as mock:
+        client = MagicMock()
+        client.put_item = AsyncMock(return_value=None)
+        client.get_item = AsyncMock(return_value=None)
+        client.query = AsyncMock(return_value=[])
+        client.update_item = AsyncMock(return_value=None)
+        client.delete_item = AsyncMock(return_value=None)
+        mock.return_value = client
+        yield mock
 
 
 @pytest.fixture
@@ -102,14 +125,15 @@ def test_app(
     mock_ollama_client: MagicMock,
     mock_redis: MagicMock,
     mock_settings: MagicMock,
+    mock_dynamodb: MagicMock,
     blueprints_path: Path,
 ) -> Generator[TestClient, None, None]:
     """Create a test FastAPI application."""
-    # Import here to ensure mocks are in place
     from src.api.app import create_app
 
     app = create_app()
-    with TestClient(app) as client:
+    # Use raise_server_exceptions=False to get HTTP 500 instead of raw exceptions
+    with TestClient(app, raise_server_exceptions=False) as client:
         yield client
 
 
@@ -118,6 +142,7 @@ async def async_test_client(
     mock_ollama_client: MagicMock,
     mock_redis: MagicMock,
     mock_settings: MagicMock,
+    mock_dynamodb: MagicMock,
     blueprints_path: Path,
 ) -> AsyncIterator[AsyncClient]:
     """Create an async test client for streaming tests."""

@@ -150,6 +150,7 @@ Analyze this query and decide your response strategy."""
         user_id: str,
         session_id: str,
     ) -> AsyncIterable[dict[str, Any]]:
+        # Process request (RAG context is captured internally)
         response = await agent.process_request(
             input_text=query,
             user_id=user_id,
@@ -158,6 +159,29 @@ Analyze this query and decide your response strategy."""
             additional_params={},
         )
 
+        # Get RAG context IMMEDIATELY after process_request (before streaming)
+        rag_context = agent.get_last_rag_context()
+        
+        # Yield RAG context first if available
+        if rag_context and hasattr(rag_context, 'documents') and rag_context.documents:
+            sources = []
+            for i, doc in enumerate(rag_context.documents):
+                source = {
+                    "filename": doc.metadata.get("filename", f"Document {i+1}"),
+                    "content": doc.content[:500] if hasattr(doc, 'content') else "",
+                }
+                if i < len(rag_context.scores):
+                    source["score"] = float(rag_context.scores[i])
+                sources.append(source)
+            
+            logger.info("yielding_rag_context", documents_used=len(rag_context.documents))
+            yield {
+                "type": "rag_context",
+                "documents_used": len(rag_context.documents),
+                "sources": sources,
+            }
+
+        # Then yield the actual content
         if hasattr(response, "__aiter__"):
             async for chunk in response:
                 yield {"type": "content", "content": chunk}

@@ -19,7 +19,8 @@ class TestAgentFactory:
         config = load_agent_config(yaml_path)
 
         assert config.name == "TestAgent"
-        assert config.agent_id == "test-agent"
+        # agent_id is derived from name if 'id' key not present in YAML
+        assert config.agent_id == "testagent"
         assert config.model_id == "qwen2.5:32b"
         assert config.temperature == 0.7
 
@@ -56,12 +57,11 @@ class TestAgentConfig:
         assert config.icon == "🤖"
 
     def test_agent_config_validation(self) -> None:
-        """Test AgentConfig validates required fields."""
+        """Test AgentConfig requires all fields (dataclass with required args)."""
         from src.agents.base import AgentConfig
-        from pydantic import ValidationError
 
-        with pytest.raises(ValidationError):
-            AgentConfig(name="Test")  # Missing required fields
+        with pytest.raises(TypeError):
+            AgentConfig(name="Test")  # Missing required fields: agent_id, description
 
 
 class TestAgentRegistry:

@@ -44,6 +44,8 @@ system_prompt: |
   - Write idiomatic Python (list comprehensions, generators)
 
 knowledge_scope:
+  - default
+  - devassist
   - python-docs
   - fastapi-docs
   - sqlalchemy-docs

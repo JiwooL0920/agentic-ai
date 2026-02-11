@@ -80,6 +80,7 @@ class OllamaAgent(Agent):
         settings = get_settings()
         self._client = AsyncClient(host=settings.ollama_host)
         self._tool_executor = ToolExecutor()
+        self._last_rag_context: Any | None = None  # Store last RAG context for retrieval
 
     def _extract_tool_names(self, tools: list[dict[str, Any]]) -> list[str]:
         return [t.get("name", "") for t in tools if t.get("name")]
@@ -254,6 +255,7 @@ class OllamaAgent(Agent):
 
     async def _get_rag_augmented_prompt(self, input_text: str) -> str | None:
         if not RAG_ENABLED or not self.knowledge_scope:
+            self._last_rag_context = None
             return None
 
         try:
@@ -265,6 +267,8 @@ class OllamaAgent(Agent):
             )
 
             if context.has_context:
+                # Store context for later retrieval
+                self._last_rag_context = context
                 self._logger.info(
                     "rag_context_applied",
                     documents_used=len(context.documents),
@@ -272,10 +276,16 @@ class OllamaAgent(Agent):
                 )
                 return augmented_prompt
 
+            self._last_rag_context = None
             return None
         except Exception as e:
             self._logger.warning("rag_retrieval_failed", error=str(e))
+            self._last_rag_context = None
             return None
+    
+    def get_last_rag_context(self) -> Any | None:
+        """Get the RAG context from the last request."""
+        return self._last_rag_context
 
     async def _tracked_streaming_response(
         self, messages: list[dict[str, Any]], request_id: str

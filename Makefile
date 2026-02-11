@@ -51,8 +51,11 @@ help:
 	@echo "  make check           - Run all checks"
 	@echo ""
 	@echo "Cleanup:"
-	@echo "  make clean           - Clean build artifacts"
-	@echo "  make clean-all       - Clean everything including node_modules"
+	@echo "  make clean             - Clean build artifacts"
+	@echo "  make clean-all         - Clean everything including node_modules"
+	@echo "  make clean-docker      - Prune Docker images and build cache in Colima"
+	@echo "  make clean-docker-full - Full Docker cleanup including volumes"
+	@echo "  make clean-kind-images - Trigger image GC in Kind cluster"
 	@echo ""
 
 # =============================================================================
@@ -258,6 +261,32 @@ clean-all: clean
 	cd packages/ui && make clean
 	rm -rf node_modules
 	@echo -e "$(GREEN)Deep clean complete!$(RESET)"
+
+# =============================================================================
+# Docker/Colima Cleanup
+# =============================================================================
+clean-docker:
+	@echo -e "$(BLUE)Cleaning Docker resources in Colima...$(RESET)"
+	@echo "Before cleanup:"
+	@docker system df
+	@echo ""
+	docker system prune -f
+	docker builder prune -f
+	@echo ""
+	@echo "After cleanup:"
+	@docker system df
+	@echo -e "$(GREEN)Docker cleanup complete!$(RESET)"
+
+clean-docker-full: clean-docker
+	@echo -e "$(YELLOW)Removing unused Docker volumes (excluding named volumes)...$(RESET)"
+	docker volume prune -f
+	@echo -e "$(GREEN)Full Docker cleanup complete!$(RESET)"
+
+clean-kind-images:
+	@echo -e "$(BLUE)Triggering image cleanup in Kind cluster...$(RESET)"
+	kubectl create job --from=cronjob/node-image-gc manual-gc-$$(date +%s) -n node-maintenance
+	@echo "Cleanup job started. Check logs with:"
+	@echo "  kubectl logs -n node-maintenance -l job-name -f"
 
 # =============================================================================
 # Blueprint Management

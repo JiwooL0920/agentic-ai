@@ -44,6 +44,8 @@ system_prompt: |
   - Dark mode support
 
 knowledge_scope:
+  - default
+  - devassist
   - nextjs-docs
   - react-docs
   - tailwind-docs
