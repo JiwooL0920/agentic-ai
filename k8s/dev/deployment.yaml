@@ -95,6 +95,8 @@ kind: Service
 metadata:
   name: agentic-ai-core
   namespace: agentic-ai
+  labels:
+    app: agentic-ai-core
 spec:
   selector:
     app: agentic-ai-core

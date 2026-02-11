@@ -22,6 +22,7 @@ from agent_squad.types import ConversationMessage, ParticipantRole
 from ollama import AsyncClient
 
 from ..config import get_settings
+from ..observability import LLMTracker
 
 logger = structlog.get_logger()
 
@@ -58,10 +59,6 @@ class OllamaAgentOptions(AgentOptions):
 
 
 class OllamaAgent(Agent):
-    """
-    Agent powered by local Ollama models.
-    Equivalent to company's Bedrock Agent but runs locally.
-    """
 
     def __init__(self, options: OllamaAgentOptions):
         super().__init__(options)
@@ -73,7 +70,6 @@ class OllamaAgent(Agent):
         self.tools = options.tools
         self.knowledge_scope = options.knowledge_scope
         self._logger = logger.bind(agent=options.name, model=options.model_id)
-        # Initialize async Ollama client with configured host
         settings = get_settings()
         self._client = AsyncClient(host=settings.ollama_host)
 
@@ -82,27 +78,22 @@ class OllamaAgent(Agent):
         input_text: str,
         chat_history: list[ConversationMessage],
     ) -> list[dict[str, str]]:
-        """Build message list for Ollama API."""
         messages = []
 
-        # Add system prompt
         if self.system_prompt:
             messages.append({"role": "system", "content": self.system_prompt})
 
-        # Add chat history
         for msg in chat_history:
             content = msg.content[0].get("text", "") if msg.content else ""
             messages.append({"role": msg.role, "content": content})
 
-        # Add current user message
         messages.append({"role": "user", "content": input_text})
 
         return messages
 
     async def _handle_streaming_response(
-        self, messages: list[dict[str, str]]
+        self, messages: list[dict[str, str]], tracker: LLMTracker
     ) -> AsyncIterable[str]:
-        """Handle streaming response from Ollama (non-blocking async)."""
         try:
             response = await self._client.chat(
                 model=self.model_id,
@@ -114,19 +105,27 @@ class OllamaAgent(Agent):
                 },
             )
 
+            total_output_tokens = 0
             async for chunk in response:
                 content = chunk.get("message", {}).get("content", "")
                 if content:
+                    if total_output_tokens == 0:
+                        tracker.record_first_token()
+                    total_output_tokens += 1
                     yield content
+
+                if chunk.get("done", False):
+                    input_tokens = chunk.get("prompt_eval_count", 0)
+                    output_tokens = chunk.get("eval_count", total_output_tokens)
+                    tracker.record_tokens(input_tokens, output_tokens)
 
         except (httpx.HTTPError, httpx.ConnectError, httpx.TimeoutException) as e:
             self._logger.error("streaming_error", error=str(e))
             raise
 
     async def _handle_sync_response(
-        self, messages: list[dict[str, str]]
+        self, messages: list[dict[str, str]], tracker: LLMTracker
     ) -> ConversationMessage:
-        """Handle synchronous response from Ollama (non-blocking async)."""
         try:
             response = await self._client.chat(
                 model=self.model_id,
@@ -139,6 +138,9 @@ class OllamaAgent(Agent):
             )
 
             content = response.get("message", {}).get("content", "")
+            input_tokens = response.get("prompt_eval_count", 0)
+            output_tokens = response.get("eval_count", 0)
+            tracker.record_tokens(input_tokens, output_tokens)
 
             return ConversationMessage(
                 role=ParticipantRole.ASSISTANT,
@@ -157,30 +159,44 @@ class OllamaAgent(Agent):
         chat_history: list[ConversationMessage],
         additional_params: dict[str, str] | None = None,
     ) -> ConversationMessage | AsyncIterable[Any]:
-        """
-        Process request using Ollama.
-
-        Args:
-            input_text: User's input message
-            user_id: Unique user identifier
-            session_id: Session identifier
-            chat_history: Previous conversation messages
-            additional_params: Optional additional parameters
-
-        Returns:
-            ConversationMessage for sync, AsyncIterable[str] for streaming
-        """
+        request_id = (additional_params or {}).get("request_id", "")
         self._logger.info(
             "processing_request",
             user_id=user_id,
             session_id=session_id,
             input_length=len(input_text),
             streaming=self.streaming,
+            request_id=request_id,
         )
 
         messages = self._build_messages(input_text, chat_history)
 
         if self.streaming:
-            return self._handle_streaming_response(messages)
+            return self._tracked_streaming_response(messages, request_id)
         else:
-            return await self._handle_sync_response(messages)
+            return await self._tracked_sync_response(messages, request_id)
+
+    async def _tracked_streaming_response(
+        self, messages: list[dict[str, str]], request_id: str
+    ) -> AsyncIterable[str]:
+        tracker = LLMTracker(
+            model=self.model_id,
+            agent=self.name,
+            streaming=True,
+            request_id=request_id,
+        )
+        async with tracker:
+            async for chunk in self._handle_streaming_response(messages, tracker):
+                yield chunk
+
+    async def _tracked_sync_response(
+        self, messages: list[dict[str, str]], request_id: str
+    ) -> ConversationMessage:
+        tracker = LLMTracker(
+            model=self.model_id,
+            agent=self.name,
+            streaming=False,
+            request_id=request_id,
+        )
+        async with tracker:
+            return await self._handle_sync_response(messages, tracker)

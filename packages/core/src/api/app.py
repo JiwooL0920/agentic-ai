@@ -17,6 +17,7 @@ from redis.exceptions import RedisError
 from ..agents.registry import AgentRegistry
 from ..cache.redis_client import close_redis, init_redis
 from ..config import get_settings
+from .middleware.request_id import RequestIdMiddleware
 from .routes import agents, blueprints, chat, health, sessions
 
 logger = structlog.get_logger()
@@ -83,7 +84,6 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS middleware
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -96,6 +96,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    app.add_middleware(RequestIdMiddleware)
 
     # Mount Prometheus metrics
     metrics_app = make_asgi_app()
