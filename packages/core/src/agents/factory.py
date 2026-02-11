@@ -8,9 +8,15 @@ from pathlib import Path
 import structlog
 import yaml
 
+from ..tools.registry import register_builtin_tools
 from .base import AgentConfig, OllamaAgent, OllamaAgentOptions
 
 logger = structlog.get_logger()
+
+
+def _ensure_tools_registered() -> None:
+    """Ensure builtin tools are registered before loading agents."""
+    register_builtin_tools()
 
 
 def load_agent_config(yaml_path: Path) -> AgentConfig:
@@ -44,6 +50,7 @@ def load_agent_from_yaml(yaml_path: Path) -> OllamaAgent:
     Returns:
         Configured OllamaAgent instance
     """
+    _ensure_tools_registered()
     config = load_agent_config(yaml_path)
 
     logger.info(

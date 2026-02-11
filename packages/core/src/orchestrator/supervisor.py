@@ -87,7 +87,7 @@ class SupervisorOrchestrator:
         query: str,
         user_id: str,
         session_id: str,
-        chat_history: list | None = None,
+        chat_history: list[Any] | None = None,
     ) -> dict[str, Any]:
         """
         Process query through supervisor agent (non-streaming).
@@ -127,7 +127,10 @@ Analyze this query and decide your response strategy."""
             )
 
             content = ""
-            if hasattr(response, 'content') and response.content:
+            if hasattr(response, "__aiter__"):
+                async for chunk in response:
+                    content += str(chunk)
+            elif hasattr(response, "content") and response.content:
                 content = response.content[0].get("text", "")
 
             return {
@@ -160,7 +163,7 @@ Analyze this query and decide your response strategy."""
                 yield {"type": "content", "content": chunk}
         else:
             content = ""
-            if hasattr(response, 'content') and response.content:
+            if hasattr(response, "content") and response.content:
                 content = response.content[0].get("text", "")
             yield {"type": "content", "content": content}
 
@@ -171,7 +174,7 @@ Analyze this query and decide your response strategy."""
         query: str,
         user_id: str,
         session_id: str,
-        chat_history: list | None = None,
+        chat_history: list[Any] | None = None,
         blueprint: str | None = None,
     ) -> AsyncIterable[dict[str, Any]]:
         """
@@ -234,7 +237,7 @@ Analyze this query and decide your response strategy."""
                 }
 
                 async for chunk_data in self._get_agent_response(
-                    selected_agent, query, user_id, session_id  # type: ignore[arg-type]
+                    selected_agent, query, user_id, session_id
                 ):
                     yield chunk_data
                 return
@@ -311,7 +314,7 @@ Analyze this query and decide your response strategy."""
             }
 
             async for chunk_data in self._get_agent_response(
-                selected_agent, query, user_id, session_id  # type: ignore[arg-type]
+                selected_agent, query, user_id, session_id
             ):
                 yield chunk_data
 

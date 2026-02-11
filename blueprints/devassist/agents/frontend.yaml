@@ -50,10 +50,10 @@ knowledge_scope:
   - shadcn-ui
 
 tools:
-  - name: npm_search
-    description: Search npm for packages
-  - name: component_preview
-    description: Preview UI components
+  - name: web_search
+  - name: code_execute
+  - name: file_read
+  - name: http_request
 
 icon: ⚛️
 color: cyan-500

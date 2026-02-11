@@ -57,8 +57,8 @@ knowledge_scope:
   - best-practices
 
 tools:
-  - name: diagram_generate
-    description: Generate architecture diagrams
+  - name: web_search
+  - name: file_read
 
 icon: 🏛️
 color: amber-500

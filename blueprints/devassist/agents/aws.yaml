@@ -55,8 +55,9 @@ knowledge_scope:
   - cloudformation-templates
 
 tools:
-  - name: aws_docs
-    description: Search AWS documentation and best practices
+  - name: web_search
+  - name: file_read
+  - name: http_request
 
 icon: ☁️
 color: orange-500

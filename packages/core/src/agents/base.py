@@ -23,8 +23,13 @@ from ollama import AsyncClient
 
 from ..config import get_settings
 from ..observability import LLMTracker
+from ..tools.base import ToolCall
+from ..tools.executor import ToolExecutor
+from ..tools.registry import get_tool_registry
 
 logger = structlog.get_logger()
+
+MAX_TOOL_ITERATIONS = 5
 
 
 @dataclass
@@ -67,18 +72,28 @@ class OllamaAgent(Agent):
         self.temperature = options.temperature
         self.max_tokens = options.max_tokens
         self.system_prompt = options.system_prompt
-        self.tools = options.tools
+        self.tool_names = self._extract_tool_names(options.tools)
         self.knowledge_scope = options.knowledge_scope
         self._logger = logger.bind(agent=options.name, model=options.model_id)
         settings = get_settings()
         self._client = AsyncClient(host=settings.ollama_host)
+        self._tool_executor = ToolExecutor()
+
+    def _extract_tool_names(self, tools: list[dict[str, Any]]) -> list[str]:
+        return [t.get("name", "") for t in tools if t.get("name")]
+
+    def _get_ollama_tools(self) -> list[dict[str, Any]]:
+        if not self.tool_names:
+            return []
+        registry = get_tool_registry()
+        return registry.get_ollama_tools(self.tool_names)
 
     def _build_messages(
         self,
         input_text: str,
         chat_history: list[ConversationMessage],
-    ) -> list[dict[str, str]]:
-        messages = []
+    ) -> list[dict[str, Any]]:
+        messages: list[dict[str, Any]] = []
 
         if self.system_prompt:
             messages.append({"role": "system", "content": self.system_prompt})
@@ -92,7 +107,7 @@ class OllamaAgent(Agent):
         return messages
 
     async def _handle_streaming_response(
-        self, messages: list[dict[str, str]], tracker: LLMTracker
+        self, messages: list[dict[str, Any]], tracker: LLMTracker
     ) -> AsyncIterable[str]:
         try:
             response = await self._client.chat(
@@ -124,18 +139,43 @@ class OllamaAgent(Agent):
             raise
 
     async def _handle_sync_response(
-        self, messages: list[dict[str, str]], tracker: LLMTracker
+        self, messages: list[dict[str, Any]], tracker: LLMTracker
     ) -> ConversationMessage:
         try:
-            response = await self._client.chat(
-                model=self.model_id,
-                messages=messages,
-                stream=False,
-                options={
+            ollama_tools = self._get_ollama_tools()
+            chat_kwargs: dict[str, Any] = {
+                "model": self.model_id,
+                "messages": messages,
+                "stream": False,
+                "options": {
                     "temperature": self.temperature,
                     "num_predict": self.max_tokens,
                 },
-            )
+            }
+
+            if ollama_tools:
+                chat_kwargs["tools"] = ollama_tools
+
+            response = await self._client.chat(**chat_kwargs)
+
+            iteration = 0
+            while self._has_tool_calls(response) and iteration < MAX_TOOL_ITERATIONS:
+                iteration += 1
+                self._logger.info("processing_tool_calls", iteration=iteration)
+
+                tool_calls = self._parse_tool_calls(response)
+                assistant_message = response.get("message", {})
+                messages.append(assistant_message)
+
+                for tool_call in tool_calls:
+                    result = await self._tool_executor.execute_tool(tool_call)
+                    tool_message = {
+                        "role": "tool",
+                        "content": result.to_message(),
+                    }
+                    messages.append(tool_message)
+
+                response = await self._client.chat(**chat_kwargs | {"messages": messages})
 
             content = response.get("message", {}).get("content", "")
             input_tokens = response.get("prompt_eval_count", 0)
@@ -150,6 +190,27 @@ class OllamaAgent(Agent):
         except (httpx.HTTPError, httpx.ConnectError, httpx.TimeoutException) as e:
             self._logger.error("response_error", error=str(e))
             raise
+
+    def _has_tool_calls(self, response: dict[str, Any]) -> bool:
+        message = response.get("message", {})
+        tool_calls = message.get("tool_calls", [])
+        return len(tool_calls) > 0
+
+    def _parse_tool_calls(self, response: dict[str, Any]) -> list[ToolCall]:
+        message = response.get("message", {})
+        raw_tool_calls = message.get("tool_calls", [])
+
+        tool_calls = []
+        for i, tc in enumerate(raw_tool_calls):
+            function = tc.get("function", {})
+            tool_calls.append(
+                ToolCall(
+                    tool_name=function.get("name", ""),
+                    arguments=function.get("arguments", {}),
+                    call_id=str(i),
+                )
+            )
+        return tool_calls
 
     async def process_request(
         self,
@@ -177,7 +238,7 @@ class OllamaAgent(Agent):
             return await self._tracked_sync_response(messages, request_id)
 
     async def _tracked_streaming_response(
-        self, messages: list[dict[str, str]], request_id: str
+        self, messages: list[dict[str, Any]], request_id: str
     ) -> AsyncIterable[str]:
         tracker = LLMTracker(
             model=self.model_id,
@@ -190,7 +251,7 @@ class OllamaAgent(Agent):
                 yield chunk
 
     async def _tracked_sync_response(
-        self, messages: list[dict[str, str]], request_id: str
+        self, messages: list[dict[str, Any]], request_id: str
     ) -> ConversationMessage:
         tracker = LLMTracker(
             model=self.model_id,

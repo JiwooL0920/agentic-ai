@@ -49,10 +49,10 @@ knowledge_scope:
   - sqlalchemy-docs
 
 tools:
-  - name: pip_search
-    description: Search PyPI for packages
-  - name: code_lint
-    description: Lint Python code with ruff
+  - name: web_search
+  - name: code_execute
+  - name: file_read
+  - name: http_request
 
 icon: 🐍
 color: green-500

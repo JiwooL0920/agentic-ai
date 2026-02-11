@@ -48,8 +48,9 @@ knowledge_scope:
   - module-registry
 
 tools:
-  - name: terraform_docs
-    description: Search Terraform registry and documentation
+  - name: web_search
+  - name: file_read
+  - name: http_request
 
 icon: 🏗️
 color: purple-500

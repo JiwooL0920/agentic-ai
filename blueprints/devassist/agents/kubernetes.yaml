@@ -45,10 +45,9 @@ knowledge_scope:
   - runbooks
 
 tools:
-  - name: kubectl_exec
-    description: Execute kubectl commands (read-only by default)
-  - name: helm_search
-    description: Search Helm charts
+  - name: web_search
+  - name: file_read
+  - name: http_request
 
 icon: ☸️
 color: blue-500
