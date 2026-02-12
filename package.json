@@ -8,9 +8,11 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "format": "pnpm -r format",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "turbo": "^2.0.0"
   },
   "packageManager": "pnpm@9.0.0",
