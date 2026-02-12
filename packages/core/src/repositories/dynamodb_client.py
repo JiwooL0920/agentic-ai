@@ -26,7 +26,7 @@ class DynamoDBClient:
     Provides common operations (put, get, query, update) with connection pooling.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._session = aioboto3.Session()
         self._config = Config(
             retries={'max_attempts': 3, 'mode': 'adaptive'},
@@ -34,7 +34,7 @@ class DynamoDBClient:
             read_timeout=30,
         )
 
-    def _get_client_params(self) -> dict:
+    def _get_client_params(self) -> dict[str, Any]:
         """Get boto3 client parameters for ScyllaDB Alternator."""
         return {
             'service_name': 'dynamodb',
@@ -92,16 +92,17 @@ class DynamoDBClient:
         sort_ascending: bool = True,
         limit: int | None = None,
         filter_expression: str | None = None,
-        filter_values: dict | None = None,
+        filter_values: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Query items by partition key.
         """
         async with self._session.client(**self._get_client_params()) as client:
-            params = {
+            expression_attr_values: dict[str, dict[str, Any]] = {':pk': {'S': partition_value}}
+            params: dict[str, Any] = {
                 'TableName': table_name,
                 'KeyConditionExpression': f'{partition_key} = :pk',
-                'ExpressionAttributeValues': {':pk': {'S': partition_value}},
+                'ExpressionAttributeValues': expression_attr_values,
                 'ScanIndexForward': sort_ascending,
             }
 
@@ -115,7 +116,7 @@ class DynamoDBClient:
                 params['FilterExpression'] = filter_expression
                 # Merge filter values into expression attribute values
                 for k, v in filter_values.items():
-                    params['ExpressionAttributeValues'][k] = self._serialize_value(v)
+                    expression_attr_values[k] = self._serialize_value(v)
 
             try:
                 logger.debug(

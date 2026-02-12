@@ -1,11 +1,14 @@
 """Session management API routes."""
 
+from typing import Any
+
 import structlog
 from fastapi import APIRouter, HTTPException
 
 from ...schemas import (
     SessionDetailResponse,
     SessionListResponse,
+    UpdateKnowledgeConfigRequest,
     UpdateSessionStateRequest,
     UpdateSessionTitleRequest,
 )
@@ -17,7 +20,7 @@ logger = structlog.get_logger()
 
 
 @router.get("/sessions/new")
-async def get_new_session_id():
+async def get_new_session_id() -> dict[str, str]:
     """
     Generate a new session UUID.
 
@@ -30,7 +33,7 @@ async def get_new_session_id():
 async def create_session(
     blueprint: str,
     user: CurrentUser,
-):
+) -> dict[str, Any]:
     """Create a new chat session."""
     service = SessionService(blueprint)
     return await service.create_session(user_id=user.user_id)
@@ -41,7 +44,7 @@ async def get_user_sessions(
     blueprint: str,
     user: CurrentUser,
     include_archived: bool = False,
-):
+) -> SessionListResponse:
     """
     Get all sessions for a user, sorted by activity.
 
@@ -61,7 +64,7 @@ async def get_user_sessions(
 async def get_session(
     blueprint: str,
     session_id: str,
-):
+) -> SessionDetailResponse:
     """
     Get session history for resuming a conversation.
 
@@ -82,7 +85,7 @@ async def update_session_state(
     session_id: str,
     body: UpdateSessionStateRequest,
     user: CurrentUser,
-):
+) -> dict[str, Any]:
     """
     Update session state (pin/unpin/archive).
 
@@ -107,7 +110,7 @@ async def update_session_title(
     blueprint: str,
     session_id: str,
     body: UpdateSessionTitleRequest,
-):
+) -> dict[str, Any]:
     """
     Update session title.
 
@@ -117,5 +120,22 @@ async def update_session_title(
 
     try:
         return await service.update_title(session_id, body.title)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail="Session not found") from e
+
+
+@router.patch("/blueprints/{blueprint}/sessions/{session_id}/knowledge")
+async def update_session_knowledge_config(
+    blueprint: str,
+    session_id: str,
+    body: UpdateKnowledgeConfigRequest,
+) -> dict[str, Any]:
+    service = SessionService(blueprint)
+
+    try:
+        return await service.update_knowledge_config(
+            session_id=session_id,
+            knowledge_config=body.knowledge_config.model_dump(),
+        )
     except KeyError as e:
         raise HTTPException(status_code=404, detail="Session not found") from e

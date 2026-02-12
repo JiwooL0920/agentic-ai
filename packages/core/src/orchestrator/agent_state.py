@@ -1,5 +1,6 @@
 """Agent state management - tracks which agents are enabled/disabled per session."""
 
+from typing import Any
 
 import structlog
 
@@ -14,7 +15,7 @@ class AgentStateManager:
     For now, we use in-memory storage.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # session_id -> blueprint -> set of disabled agent names (lowercase)
         self._disabled_agents: dict[str, dict[str, set[str]]] = {}
 
@@ -62,8 +63,8 @@ class AgentStateManager:
         self,
         session_id: str,
         blueprint: str,
-        all_agents: dict[str, any]
-    ) -> dict[str, any]:
+        all_agents: dict[str, Any]
+    ) -> dict[str, Any]:
         """Get only enabled agents for a session."""
         if (session_id not in self._disabled_agents or
             blueprint not in self._disabled_agents[session_id]):

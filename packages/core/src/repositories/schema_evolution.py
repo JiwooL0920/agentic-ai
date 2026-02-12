@@ -5,16 +5,24 @@ Best practice: Add schema_version to all documents and handle evolution at read 
 This allows zero-downtime schema changes.
 """
 
+from typing import Any
+
 # Current schema versions
-SESSION_SCHEMA_VERSION = 1
+SESSION_SCHEMA_VERSION = 2
 MESSAGE_SCHEMA_VERSION = 1
+
+DEFAULT_KNOWLEDGE_CONFIG: dict[str, Any] = {
+    "active_scopes": [],
+    "include_agent_scopes": True,
+    "include_user_docs": True,
+}
 
 
 class SchemaEvolution:
     """Handle schema version migrations on read."""
 
     @staticmethod
-    def migrate_session(session: dict) -> dict:
+    def migrate_session(session: dict[str, Any]) -> dict[str, Any]:
         """
         Migrate session document to current schema version.
 
@@ -27,16 +35,15 @@ class SchemaEvolution:
             session = SchemaEvolution._migrate_session_v1_to_v2(session)
             version = 2
 
-        # Future migrations would go here:
-        # if version < 3:
-        #     session = SchemaEvolution._migrate_session_v2_to_v3(session)
-        #     version = 3
+        if version < 3:
+            session = SchemaEvolution._migrate_session_v2_to_v3(session)
+            version = 3
 
         session['schema_version'] = SESSION_SCHEMA_VERSION
         return session
 
     @staticmethod
-    def _migrate_session_v1_to_v2(session: dict) -> dict:
+    def _migrate_session_v1_to_v2(session: dict[str, Any]) -> dict[str, Any]:
         """
         Example migration: v1 → v2.
 
@@ -55,7 +62,13 @@ class SchemaEvolution:
         return session
 
     @staticmethod
-    def migrate_message(message: dict) -> dict:
+    def _migrate_session_v2_to_v3(session: dict[str, Any]) -> dict[str, Any]:
+        if 'knowledge_config' not in session:
+            session['knowledge_config'] = DEFAULT_KNOWLEDGE_CONFIG.copy()
+        return session
+
+    @staticmethod
+    def migrate_message(message: dict[str, Any]) -> dict[str, Any]:
         """Migrate message document to current schema version."""
         # Apply migrations sequentially
         # (no migrations yet, but structure is here)

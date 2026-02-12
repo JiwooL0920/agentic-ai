@@ -148,6 +148,9 @@ class ChatService:
             session_id=session_id,
         )
 
+        session = await self._session_repo.get_session(session_id)
+        knowledge_config = session.get("knowledge_config") if session else None
+
         accumulated_response = ""
         active_agent = None
 
@@ -157,6 +160,7 @@ class ChatService:
                 user_id=user_id,
                 session_id=session_id,
                 blueprint=self._blueprint,
+                knowledge_config=knowledge_config,
             ):
                 # Track for persistence
                 if chunk.get("type") == "content":

@@ -6,6 +6,8 @@ using the new modular components (RedisClient, SessionCache, AgentStateCache,
 RateLimiter).
 """
 
+from typing import Any
+
 import structlog
 
 from .agent_state_cache import AgentStateCache
@@ -42,9 +44,9 @@ class RedisSentinelClient:
         await self._base_client.disconnect()
 
     @property
-    def client(self):
+    def client(self) -> "RedisClient":
         """Get underlying Redis client for direct operations."""
-        return self._base_client.client
+        return self._base_client
 
     @property
     def sessions(self) -> SessionCache:
@@ -67,11 +69,11 @@ class RedisSentinelClient:
             raise RuntimeError("Redis not connected. Call connect() first.")
         return self._rate_limiter
 
-    async def cache_session(self, session_id: str, data: dict, ttl: int = 3600) -> None:
+    async def cache_session(self, session_id: str, data: dict[str, Any], ttl: int = 3600) -> None:
         """Cache session metadata."""
         await self.sessions.cache(session_id, data, ttl)
 
-    async def get_cached_session(self, session_id: str) -> dict | None:
+    async def get_cached_session(self, session_id: str) -> dict[str, Any] | None:
         """Get cached session."""
         return await self.sessions.get(session_id)
 
@@ -83,7 +85,7 @@ class RedisSentinelClient:
         self,
         user_id: str,
         blueprint: str,
-        sessions: list[dict],
+        sessions: list[dict[str, Any]],
         ttl: int = 300,
     ) -> None:
         """Cache user's session list (for sidebar)."""
@@ -93,7 +95,7 @@ class RedisSentinelClient:
         self,
         user_id: str,
         blueprint: str,
-    ) -> list[dict] | None:
+    ) -> list[dict[str, Any]] | None:
         """Get cached user session list."""
         return await self.sessions.get_user_sessions(user_id, blueprint)
 
@@ -137,7 +139,7 @@ class RedisSentinelClient:
 
     async def batch_cache_sessions(
         self,
-        sessions: list[tuple[str, dict, int]],
+        sessions: list[tuple[str, dict[str, Any], int]],
     ) -> None:
         """Cache multiple sessions in a single pipeline."""
         await self.sessions.batch_cache(sessions)

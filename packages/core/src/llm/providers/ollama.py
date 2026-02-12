@@ -1,7 +1,7 @@
 """Ollama LLM Provider implementation."""
 
 import time
-from collections.abc import AsyncIterable
+from collections.abc import AsyncGenerator
 from typing import Any
 
 import httpx
@@ -119,7 +119,7 @@ class OllamaProvider(LLMProvider):
         messages: list[LLMMessage],
         tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
-    ) -> AsyncIterable[LLMStreamChunk]:
+    ) -> AsyncGenerator[LLMStreamChunk, None]:
         ollama_messages = self._convert_messages(messages)
 
         chat_kwargs: dict[str, Any] = {

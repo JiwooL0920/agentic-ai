@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import builtins
+from collections.abc import Mapping
 from typing import Any
 
 import redis.asyncio as aioredis
@@ -43,7 +45,7 @@ class RedisClient:
         self._socket_timeout = socket_timeout
 
         self._sentinel: Sentinel | None = None
-        self._client: aioredis.Redis | None = None
+        self._client: aioredis.Redis | None = None  # type: ignore[type-arg]
         self._connected = False
 
     @property
@@ -51,7 +53,7 @@ class RedisClient:
         return self._connected and self._client is not None
 
     @property
-    def client(self) -> aioredis.Redis:
+    def client(self) -> aioredis.Redis:  # type: ignore[type-arg]
         if not self._client:
             raise RuntimeError("Redis not connected. Call connect() first.")
         return self._client
@@ -71,7 +73,7 @@ class RedisClient:
 
         self._connected = True
 
-    async def _connect_sentinel(self) -> aioredis.Redis:
+    async def _connect_sentinel(self) -> aioredis.Redis:  # type: ignore[type-arg]
         """Attempt Sentinel connection."""
         sentinel_hosts = [(self._host, self._port)]
         self._sentinel = Sentinel(
@@ -87,7 +89,7 @@ class RedisClient:
         await master.ping()
         return master
 
-    async def _connect_direct(self) -> aioredis.Redis:
+    async def _connect_direct(self) -> aioredis.Redis:  # type: ignore[type-arg]
         """Fallback to direct Redis connection."""
         client = aioredis.Redis(
             host=self._host,
@@ -102,7 +104,7 @@ class RedisClient:
     async def disconnect(self) -> None:
         """Close Redis connection."""
         if self._client:
-            await self._client.aclose()
+            await self._client.close()
             self._client = None
             self._connected = False
             logger.info("redis_disconnected")
@@ -167,14 +169,14 @@ class RedisClient:
         """Remove values from a set."""
         return await self.client.srem(key, *values)
 
-    async def smembers(self, key: str) -> set[str]:
+    async def smembers(self, key: str) -> builtins.set[str]:
         """Get all members of a set."""
         return await self.client.smembers(key)
 
     async def zadd(
         self,
         key: str,
-        mapping: dict[str, float],
+        mapping: Mapping[str | bytes, bytes | float | int | str],
     ) -> int:
         """Add members to a sorted set with scores."""
         return await self.client.zadd(key, mapping)

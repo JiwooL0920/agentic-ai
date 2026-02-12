@@ -76,7 +76,7 @@ class RateLimiter:
                 window=window_seconds,
             )
 
-        return allowed
+        return bool(allowed)
 
     async def get_remaining(
         self,

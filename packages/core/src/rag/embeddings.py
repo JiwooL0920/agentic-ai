@@ -84,7 +84,7 @@ class OllamaEmbeddings:
                 prompt=text,
             )
 
-            embedding = response.get("embedding", [])
+            embedding: list[float] = response.get("embedding", [])
             if not embedding:
                 raise EmbeddingError(f"Empty embedding returned for text: {text[:50]}...")
 
@@ -186,7 +186,7 @@ class OllamaEmbeddings:
         if norm1 == 0 or norm2 == 0:
             return 0.0
 
-        return dot_product / (norm1 * norm2)
+        return float(dot_product / (norm1 * norm2))
 
     async def health_check(self) -> dict[str, Any]:
         """Check if embedding service is available.

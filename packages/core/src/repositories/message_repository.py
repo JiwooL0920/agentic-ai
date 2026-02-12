@@ -6,6 +6,7 @@ Handles CRUD operations for chat messages stored in ScyllaDB.
 
 import time
 from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 import structlog
@@ -39,9 +40,9 @@ class MessageRepository:
         role: str,
         content: str,
         agent: str | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
         timestamp_ms: int | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Save a single chat message.
 
         Args:
@@ -95,7 +96,7 @@ class MessageRepository:
         session_id: str,
         limit: int | None = None,
         ascending: bool = True,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Get all messages for a session, ordered by timestamp.
 
         Note: ScyllaDB Alternator may not reliably honor ScanIndexForward,
@@ -121,7 +122,7 @@ class MessageRepository:
         self,
         session_id: str,
         limit: int = 10,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Get the N most recent messages for a session."""
         # Query in descending order and reverse
         messages = await self._dynamodb.query(
@@ -142,7 +143,7 @@ class MessageRepository:
         user_message: str,
         bot_response: str,
         agent: str | None = None,
-    ):
+    ) -> None:
         """
         Save a complete conversation turn (user + assistant messages).
 

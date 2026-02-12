@@ -7,6 +7,8 @@ import { ArrowLeft, Sparkles, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AgentManager } from '@/components/agent-manager';
 import { SystemStats } from '@/components/system-stats';
+import { KnowledgeConfigPanel } from '@/components/knowledge-config-panel';
+import { KnowledgeScopeIndicator } from '@/components/knowledge-scope-indicator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MessageList, ChatInput } from '@/components/chat';
 import { useChat } from '@/hooks/useChat';
@@ -67,6 +69,7 @@ export default function ChatPage() {
           </div>
           <div className="flex items-center gap-3">
             <SystemStats />
+            <KnowledgeConfigPanel blueprint={blueprint} sessionId={sessionId} />
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -85,6 +88,8 @@ export default function ChatPage() {
           </div>
         </div>
       </header>
+
+      <KnowledgeScopeIndicator blueprint={blueprint} sessionId={sessionId} />
 
       <MessageList
         messages={messages}

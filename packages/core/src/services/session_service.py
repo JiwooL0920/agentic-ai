@@ -7,6 +7,7 @@ Extracted from api/routes/sessions.py to enable:
 - Clean separation of concerns
 """
 
+from typing import Any
 from uuid import uuid4
 
 import structlog
@@ -47,7 +48,7 @@ class SessionService:
         """Generate a new session UUID."""
         return uuid4().hex
 
-    async def create_session(self, user_id: str) -> dict:
+    async def create_session(self, user_id: str) -> dict[str, Any]:
         """
         Create a new chat session.
 
@@ -73,7 +74,7 @@ class SessionService:
         self,
         user_id: str,
         include_archived: bool = False,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Get all sessions for a user, sorted by activity.
 
@@ -127,7 +128,7 @@ class SessionService:
 
         return {"sessions": sessions, "total": len(sessions)}
 
-    async def get_session_with_messages(self, session_id: str) -> dict | None:
+    async def get_session_with_messages(self, session_id: str) -> dict[str, Any] | None:
         """
         Get session detail with all messages for resuming a conversation.
 
@@ -153,6 +154,7 @@ class SessionService:
             "messages": messages,
             "created_on": session.get("created_on", ""),
             "modified_on": session.get("modified_on", ""),
+            "knowledge_config": session.get("knowledge_config"),
         }
 
     async def update_state(
@@ -160,7 +162,7 @@ class SessionService:
         session_id: str,
         user_id: str,
         state: str,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Update session state (pin/unpin/archive).
 
@@ -207,7 +209,7 @@ class SessionService:
 
         return {"status": "updated", "new_state": new_state.value}
 
-    async def update_title(self, session_id: str, title: str) -> dict:
+    async def update_title(self, session_id: str, title: str) -> dict[str, Any]:
         """
         Update session title.
 
@@ -230,3 +232,23 @@ class SessionService:
 
         self._logger.info("session_title_updated", session_id=session_id)
         return {"status": "updated"}
+
+    async def update_knowledge_config(
+        self,
+        session_id: str,
+        knowledge_config: dict[str, Any],
+    ) -> dict[str, Any]:
+        success = await self._session_repo.update_knowledge_config(
+            session_id=session_id,
+            knowledge_config=knowledge_config,
+        )
+
+        if not success:
+            raise KeyError(f"Session not found: {session_id}")
+
+        self._logger.info(
+            "knowledge_config_updated",
+            session_id=session_id,
+            active_scopes=knowledge_config.get("active_scopes", []),
+        )
+        return {"status": "updated", "knowledge_config": knowledge_config}

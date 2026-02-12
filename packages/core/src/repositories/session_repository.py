@@ -6,6 +6,7 @@ Handles CRUD operations for chat sessions stored in ScyllaDB.
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 from uuid import uuid4
 
 import structlog
@@ -15,7 +16,7 @@ from redis.exceptions import RedisError
 from ..cache.redis_client import get_redis_client
 from ..config import get_settings
 from .dynamodb_client import calculate_ttl, get_dynamodb_client
-from .schema_evolution import SchemaEvolution
+from .schema_evolution import DEFAULT_KNOWLEDGE_CONFIG, SchemaEvolution
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -47,7 +48,7 @@ class SessionRepository:
         self,
         user_id: str,
         session_id: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Create a new chat session."""
         session_id = session_id or uuid4().hex
         now = datetime.now(UTC).isoformat()
@@ -58,10 +59,11 @@ class SessionRepository:
             'blueprint': self.blueprint,
             'session_state': SessionState.ACTIVE.value,
             'message_count': 0,
+            'knowledge_config': DEFAULT_KNOWLEDGE_CONFIG.copy(),
             'created_on': now,
             'modified_on': now,
             'expires_at': calculate_ttl(settings.session_ttl_days),
-            'schema_version': 1,  # ← Schema versioning
+            'schema_version': 2,
         }
 
         await self._dynamodb.put_item(self.table_name, session)
@@ -75,7 +77,7 @@ class SessionRepository:
 
         return session
 
-    async def get_session(self, session_id: str) -> dict | None:
+    async def get_session(self, session_id: str) -> dict[str, Any] | None:
         """Get session by ID."""
         # Try cache first
         try:
@@ -116,7 +118,7 @@ class SessionRepository:
         self,
         user_id: str,
         include_archived: bool = False,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         Get all sessions for a user.
 
@@ -217,7 +219,39 @@ class SessionRepository:
 
         return success
 
-    async def touch_session(self, session_id: str, increment_messages: bool = False):
+    async def update_knowledge_config(
+        self,
+        session_id: str,
+        knowledge_config: dict[str, Any],
+    ) -> bool:
+        now = datetime.now(UTC).isoformat()
+
+        success = await self._dynamodb.update_item(
+            self.table_name,
+            key={'session_id': session_id},
+            updates={
+                'knowledge_config': knowledge_config,
+                'modified_on': now,
+            },
+        )
+
+        if success:
+            try:
+                redis = get_redis_client()
+                if redis:
+                    await redis.invalidate_session(session_id)
+            except RedisError as e:
+                logger.warning("redis_invalidate_error", error=str(e))
+
+            logger.info(
+                "knowledge_config_updated",
+                session_id=session_id,
+                active_scopes=knowledge_config.get('active_scopes', []),
+            )
+
+        return success
+
+    async def touch_session(self, session_id: str, increment_messages: bool = False) -> None:
         """Update session's modified_on timestamp and optionally increment message count."""
         now = datetime.now(UTC).isoformat()
 

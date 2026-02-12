@@ -25,12 +25,14 @@ class TaskManager:
 
     _instance: "TaskManager | None" = None
     _lock: asyncio.Lock = asyncio.Lock()
+    _tasks: dict[str, asyncio.Task[Any]]
+    _logger: Any
 
     def __new__(cls) -> "TaskManager":
         """Ensure singleton instance."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._tasks: dict[str, asyncio.Task[Any]] = {}
+            cls._instance._tasks = {}
             cls._instance._logger = logger.bind(component="TaskManager")
         return cls._instance
 

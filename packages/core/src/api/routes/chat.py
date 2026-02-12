@@ -3,6 +3,8 @@
 import asyncio
 import json
 import uuid
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request
@@ -21,7 +23,7 @@ logger = structlog.get_logger()
 router = APIRouter()
 
 
-def _create_chat_service(blueprint: str, agents: dict) -> ChatService:
+def _create_chat_service(blueprint: str, agents: dict[str, Any]) -> ChatService:
     return ChatService(
         blueprint=blueprint,
         session_repo=SessionRepository(blueprint),
@@ -80,7 +82,7 @@ async def chat_stream(
     blueprint: str,
     chat_request: ChatRequest,
     user: CurrentUser,
-):
+) -> EventSourceResponse:
     registry = get_registry(request)
     agents = registry.get_blueprint_agents(blueprint)
 
@@ -106,7 +108,7 @@ async def chat_stream(
 
     task_manager = get_task_manager()
 
-    async def generate():
+    async def generate() -> AsyncGenerator[dict[str, str], None]:
         try:
             # Register this task for cancellation
             current_task = asyncio.current_task()

@@ -149,14 +149,20 @@ Analyze this query and decide your response strategy."""
         query: str,
         user_id: str,
         session_id: str,
+        knowledge_config: dict[str, Any] | None = None,
     ) -> AsyncIterable[dict[str, Any]]:
+        additional_params: dict[str, Any] = {}
+        if knowledge_config:
+            additional_params["knowledge_config"] = knowledge_config
+            additional_params["user_id"] = user_id
+
         # Process request (RAG context is captured internally)
         response = await agent.process_request(
             input_text=query,
             user_id=user_id,
             session_id=session_id,
             chat_history=[],
-            additional_params={},
+            additional_params=additional_params,
         )
 
         # Get RAG context IMMEDIATELY after process_request (before streaming)
@@ -200,6 +206,7 @@ Analyze this query and decide your response strategy."""
         session_id: str,
         chat_history: list[Any] | None = None,
         blueprint: str | None = None,
+        knowledge_config: dict[str, Any] | None = None,
     ) -> AsyncIterable[dict[str, Any]]:
         """
         Process query through supervisor agent.
@@ -261,7 +268,7 @@ Analyze this query and decide your response strategy."""
                 }
 
                 async for chunk_data in self._get_agent_response(
-                    selected_agent, query, user_id, session_id
+                    selected_agent, query, user_id, session_id, knowledge_config
                 ):
                     yield chunk_data
                 return
@@ -281,7 +288,7 @@ Analyze this query and decide your response strategy."""
                 )
 
                 async for chunk_data in self._get_agent_response(
-                    self.supervisor_agent, enhanced_query, user_id, session_id
+                    self.supervisor_agent, enhanced_query, user_id, session_id, knowledge_config
                 ):
                     yield chunk_data
                 return
@@ -299,7 +306,7 @@ Analyze this query and decide your response strategy."""
                 }
 
                 async for chunk_data in self._get_agent_response(
-                    explicit_agent, query, user_id, session_id
+                    explicit_agent, query, user_id, session_id, knowledge_config
                 ):
                     yield chunk_data
                 return
@@ -338,7 +345,7 @@ Analyze this query and decide your response strategy."""
             }
 
             async for chunk_data in self._get_agent_response(
-                selected_agent, query, user_id, session_id
+                selected_agent, query, user_id, session_id, knowledge_config
             ):
                 yield chunk_data
 

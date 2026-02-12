@@ -19,8 +19,10 @@ from .common import (
     ToolParameter,
 )
 from .sessions import (
+    KnowledgeConfig,
     SessionDetailResponse,
     SessionListResponse,
+    UpdateKnowledgeConfigRequest,
     UpdateSessionStateRequest,
     UpdateSessionTitleRequest,
 )
@@ -48,8 +50,10 @@ __all__ = [
     "ToolDefinition",
     "ToolParameter",
     # Sessions
+    "KnowledgeConfig",
     "SessionDetailResponse",
     "SessionListResponse",
+    "UpdateKnowledgeConfigRequest",
     "UpdateSessionStateRequest",
     "UpdateSessionTitleRequest",
     # Stats

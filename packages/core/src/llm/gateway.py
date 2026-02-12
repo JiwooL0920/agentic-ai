@@ -6,7 +6,7 @@ fallback, metrics tracking, and health checking.
 """
 
 import asyncio
-from collections.abc import AsyncIterable
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from typing import Any
 
@@ -308,7 +308,7 @@ class LLMGateway:
         agent_name: str = "unknown",
         request_id: str = "",
         **kwargs: Any,
-    ) -> AsyncIterable[LLMStreamChunk]:
+    ) -> AsyncGenerator[LLMStreamChunk, None]:
         """
         Send a streaming chat request with automatic fallback.
 

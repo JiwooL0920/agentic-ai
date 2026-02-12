@@ -8,7 +8,15 @@ chunk sizes and overlap to preserve semantic boundaries.
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypedDict
+
+
+class MarkdownSection(TypedDict):
+    """Type for markdown section dictionary."""
+
+    heading: str | None
+    level: int
+    content: str
 
 
 @dataclass
@@ -204,10 +212,10 @@ class MarkdownChunker(BaseChunker):
 
         return self._merge_small_chunks(chunks)
 
-    def _split_by_headings(self, text: str) -> list[dict[str, Any]]:
+    def _split_by_headings(self, text: str) -> list[MarkdownSection]:
         """Split text into sections by headings."""
-        sections: list[dict[str, Any]] = []
-        current_section = {"heading": None, "level": 0, "content": ""}
+        sections: list[MarkdownSection] = []
+        current_section: MarkdownSection = {"heading": None, "level": 0, "content": ""}
 
         lines = text.split("\n")
         i = 0
@@ -239,7 +247,7 @@ class MarkdownChunker(BaseChunker):
 
         return sections
 
-    def _chunk_section(self, section: dict[str, Any], start_index: int) -> list[Chunk]:
+    def _chunk_section(self, section: MarkdownSection, start_index: int) -> list[Chunk]:
         """Chunk a single section, preserving code blocks."""
         content = section["content"]
 

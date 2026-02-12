@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Settings } from 'lucide-react';
 import {
   DropdownMenu,
@@ -68,7 +68,7 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
     setMounted(true);
   }, []);
 
-  const fetchAgentsStatus = async () => {
+  const fetchAgentsStatus = useCallback(async () => {
     try {
       const effectiveSessionId = sessionId || 'default';
       const url = `${API_URL}/api/blueprints/${blueprint}/agents/status?session_id=${effectiveSessionId}&t=${Date.now()}`;
@@ -89,14 +89,14 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [blueprint, sessionId]);
 
   useEffect(() => {
     if (!mounted) return;
     fetchAgentsStatus();
     const interval = setInterval(fetchAgentsStatus, 30000);
     return () => clearInterval(interval);
-  }, [blueprint, sessionId, mounted]);
+  }, [mounted, fetchAgentsStatus]);
 
   const toggleAgent = async (
     agentId: string,

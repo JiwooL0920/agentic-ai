@@ -1,5 +1,7 @@
 """LLM prompts for supervisor routing and coordination."""
 
+from typing import Any
+
 
 def build_routing_prompt(input_text: str, agent_descriptions: str) -> str:
     return f"""You are a supervisor agent in a multi-agent system. Your ONLY job is to analyze user queries and route them to the most appropriate specialist agent. You never answer questions directly.
@@ -38,7 +40,7 @@ User Query: {query}
 Analyze this query and decide your response strategy."""
 
 
-def build_collaborator_context(agents: dict) -> str:
+def build_collaborator_context(agents: dict[str, Any]) -> str:
     lines = ["Available specialists:"]
     for _name, agent in agents.items():
         lines.append(f"- {agent.name}: {agent.description}")

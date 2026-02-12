@@ -52,7 +52,7 @@ class AgentConfig:
 
 
 @dataclass
-class OllamaAgentOptions(AgentOptions):
+class OllamaAgentOptions(AgentOptions):  # type: ignore[misc]
     """Options for Ollama-based agents."""
 
     model_id: str = "qwen2.5:32b"
@@ -64,7 +64,7 @@ class OllamaAgentOptions(AgentOptions):
     knowledge_scope: list[str] = field(default_factory=list)
 
 
-class OllamaAgent(Agent):
+class OllamaAgent(Agent):  # type: ignore[misc]
 
     def __init__(self, options: OllamaAgentOptions):
         super().__init__(options)
@@ -232,9 +232,12 @@ class OllamaAgent(Agent):
         user_id: str,
         session_id: str,
         chat_history: list[ConversationMessage],
-        additional_params: dict[str, str] | None = None,
+        additional_params: dict[str, Any] | None = None,
     ) -> ConversationMessage | AsyncIterable[Any]:
-        request_id = (additional_params or {}).get("request_id", "")
+        params = additional_params or {}
+        request_id = params.get("request_id", "")
+        knowledge_config = params.get("knowledge_config")
+
         self._logger.info(
             "processing_request",
             user_id=user_id,
@@ -244,7 +247,9 @@ class OllamaAgent(Agent):
             request_id=request_id,
         )
 
-        augmented_prompt = await self._get_rag_augmented_prompt(input_text)
+        augmented_prompt = await self._get_rag_augmented_prompt(
+            input_text, user_id, knowledge_config
+        )
         messages = self._build_messages(input_text, chat_history, augmented_prompt)
 
         if self.streaming:
@@ -252,9 +257,19 @@ class OllamaAgent(Agent):
         else:
             return await self._tracked_sync_response(messages, request_id)
 
-    async def _get_rag_augmented_prompt(self, input_text: str) -> str | None:
+    async def _get_rag_augmented_prompt(
+        self,
+        input_text: str,
+        user_id: str,
+        knowledge_config: dict[str, Any] | None = None,
+    ) -> str | None:
         settings = get_settings()
-        if not settings.rag_enabled or not self.knowledge_scope:
+        if not settings.rag_enabled:
+            self._last_rag_context = None
+            return None
+
+        effective_scopes = self._compute_effective_scopes(user_id, knowledge_config)
+        if not effective_scopes:
             self._last_rag_context = None
             return None
 
@@ -263,16 +278,16 @@ class OllamaAgent(Agent):
             augmented_prompt, context = await rag_chain.invoke(
                 query=input_text,
                 system_prompt=self.system_prompt or "",
-                knowledge_scope=self.knowledge_scope,
+                knowledge_scope=effective_scopes,
             )
 
             if context.has_context:
-                # Store context for later retrieval
                 self._last_rag_context = context
                 self._logger.info(
                     "rag_context_applied",
                     documents_used=len(context.documents),
                     token_estimate=context.token_estimate,
+                    scopes=effective_scopes,
                 )
                 return augmented_prompt
 
@@ -282,6 +297,26 @@ class OllamaAgent(Agent):
             self._logger.warning("rag_retrieval_failed", error=str(e))
             self._last_rag_context = None
             return None
+
+    def _compute_effective_scopes(
+        self,
+        user_id: str,
+        knowledge_config: dict[str, Any] | None = None,
+    ) -> list[str]:
+        if knowledge_config is None:
+            return self.knowledge_scope
+
+        scopes: list[str] = []
+
+        if knowledge_config.get("include_agent_scopes", True):
+            scopes.extend(self.knowledge_scope)
+
+        if knowledge_config.get("include_user_docs", True) and user_id:
+            scopes.append(f"user:{user_id}")
+
+        scopes.extend(knowledge_config.get("active_scopes", []))
+
+        return list(dict.fromkeys(scopes))
 
     def get_last_rag_context(self) -> Any | None:
         """Get the RAG context from the last request."""

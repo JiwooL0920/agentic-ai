@@ -130,38 +130,7 @@ export default function KnowledgePage() {
     }
   }, [currentScope, loadDocuments]);
 
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setDragActive(false);
-
-      const files = Array.from(e.dataTransfer.files);
-      if (files.length > 0) {
-        await handleUpload(files[0]);
-      }
-    },
-    [currentScope]
-  );
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      await handleUpload(files[0]);
-    }
-  };
-
-  const handleUpload = async (file: File) => {
+  const handleUpload = useCallback(async (file: File) => {
     const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
     
     if (!SUPPORTED_EXTENSIONS.includes(fileExt)) {
@@ -225,7 +194,38 @@ export default function KnowledgePage() {
       setUploading(false);
       setTimeout(() => setUploadProgress(0), 1000); // Reset after delay
     }
-  };
+  }, [currentScope, loadScopes, loadDocuments]);
+
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActive(false);
+
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length > 0) {
+        await handleUpload(files[0]);
+      }
+    },
+    [handleUpload]
+  );
+
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      await handleUpload(files[0]);
+    }
+  }, [handleUpload]);
 
   const handleDeleteScope = async () => {
     if (!scopeToDelete) return;

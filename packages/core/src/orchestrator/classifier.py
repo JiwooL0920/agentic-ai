@@ -14,7 +14,7 @@ from .routing import build_routing_prompt
 logger = structlog.get_logger()
 
 
-class OllamaSupervisorClassifier(Classifier):
+class OllamaSupervisorClassifier(Classifier):  # type: ignore[misc]
     """
     LLM-based supervisor classifier using Ollama.
     Mirrors AWS Bedrock's supervisor routing pattern but runs locally.

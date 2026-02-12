@@ -5,13 +5,13 @@ Defines the abstract interface for all LLM providers (Ollama, vLLM, OpenAI, etc.
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterable
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class MessageRole(str, Enum):
+class MessageRole(StrEnum):
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
@@ -99,12 +99,12 @@ class LLMProvider(ABC):
         pass
 
     @abstractmethod
-    async def chat_stream(
+    def chat_stream(
         self,
         messages: list[LLMMessage],
         tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
-    ) -> AsyncIterable[LLMStreamChunk]:
+    ) -> AsyncGenerator[LLMStreamChunk, None]:
         pass
 
     @abstractmethod

@@ -1,6 +1,7 @@
 """Session caching operations."""
 
 import json
+from typing import Any
 
 import structlog
 
@@ -31,7 +32,7 @@ class SessionCache:
     async def cache(
         self,
         session_id: str,
-        data: dict,
+        data: dict[str, Any],
         ttl: int = 3600,
     ) -> None:
         """Cache session metadata."""
@@ -42,7 +43,7 @@ class SessionCache:
         )
         logger.debug("session_cached", session_id=session_id, ttl=ttl)
 
-    async def get(self, session_id: str) -> dict | None:
+    async def get(self, session_id: str) -> dict[str, Any] | None:
         """Get cached session."""
         data = await self._client.get(self._session_key(session_id))
         return json.loads(data) if data else None
@@ -56,7 +57,7 @@ class SessionCache:
         self,
         user_id: str,
         blueprint: str,
-        sessions: list[dict],
+        sessions: list[dict[str, Any]],
         ttl: int = 300,
     ) -> None:
         """Cache user's session list (for sidebar)."""
@@ -70,7 +71,7 @@ class SessionCache:
         self,
         user_id: str,
         blueprint: str,
-    ) -> list[dict] | None:
+    ) -> list[dict[str, Any]] | None:
         """Get cached user session list."""
         data = await self._client.get(self._user_sessions_key(user_id, blueprint))
         return json.loads(data) if data else None
@@ -98,7 +99,7 @@ class SessionCache:
 
     async def batch_cache(
         self,
-        sessions: list[tuple[str, dict, int]],
+        sessions: list[tuple[str, dict[str, Any], int]],
     ) -> None:
         """Cache multiple sessions in a single pipeline."""
         if not sessions:

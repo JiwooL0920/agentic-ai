@@ -204,7 +204,11 @@ site/
 
 # lnai-generated
 .agents/skills/auto-memory
+.agents/skills/e2e-refactor
+.agents/skills/e2e-verify
 .cursor/skills/auto-memory
+.cursor/skills/e2e-refactor
+.cursor/skills/e2e-verify
 AGENTS.md
 opencode.json
 # end lnai-generated
