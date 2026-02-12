@@ -14,6 +14,10 @@ A scalable multi-agent AI platform following the **Module-Blueprint pattern**, p
 **Auto-installed by setup:**
 - pnpm (installed via npm if missing)
 - Python virtual environment (created at `./venv`)
+- Husky git hooks (for AI config auto-sync)
+
+**Optional (for AI-assisted development):**
+- [LNAI](https://github.com/KrystianJonca/lnai) (`npm install -g lnai`) - Syncs AI configs to OpenCode/Cursor
 
 **Required for full functionality:**
 - [Ollama](https://ollama.ai) (`brew install ollama` or download from website)
