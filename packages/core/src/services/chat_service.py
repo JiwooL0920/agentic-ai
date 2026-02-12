@@ -20,7 +20,6 @@ from ..cache.redis_client import get_redis_client
 from ..orchestrator.supervisor import SupervisorOrchestrator
 from ..repositories.message_repository import MessageRepository
 from ..repositories.session_repository import SessionRepository
-from .task_manager import get_task_manager
 
 logger = structlog.get_logger()
 

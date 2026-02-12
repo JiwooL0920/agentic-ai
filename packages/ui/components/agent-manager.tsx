@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { API_URL } from '@/lib/config';
 
 interface AgentStatus {
   name: string;
@@ -69,10 +70,8 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
 
   const fetchAgentsStatus = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:8000';
-      
       const effectiveSessionId = sessionId || 'default';
-      const url = `${apiUrl}/api/blueprints/${blueprint}/agents/status?session_id=${effectiveSessionId}&t=${Date.now()}`;
+      const url = `${API_URL}/api/blueprints/${blueprint}/agents/status?session_id=${effectiveSessionId}&t=${Date.now()}`;
       
       const response = await fetch(url, {
         cache: 'no-store',
@@ -85,7 +84,8 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
         const data = await response.json();
         setAgentsHealth(data);
       }
-    } catch {
+    } catch (error) {
+      console.error('Failed to fetch agent status:', error);
     } finally {
       setIsLoading(false);
     }
@@ -109,9 +109,8 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
 
     try {
       const effectiveSessionId = sessionId || 'default';
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:8000';
       const response = await fetch(
-        `${apiUrl}/api/blueprints/${blueprint}/agents/${agentId}/toggle`,
+        `${API_URL}/api/blueprints/${blueprint}/agents/${agentId}/toggle`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -139,7 +138,8 @@ export function AgentManager({ blueprint, sessionId }: AgentManagerProps) {
           fetchAgentsStatus();
         }, 500);
       }
-    } catch {
+    } catch (error) {
+      console.error('Failed to toggle agent:', error);
     }
   };
 

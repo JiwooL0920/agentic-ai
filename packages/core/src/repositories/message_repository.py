@@ -40,11 +40,26 @@ class MessageRepository:
         content: str,
         agent: str | None = None,
         metadata: dict | None = None,
+        timestamp_ms: int | None = None,
     ) -> dict:
-        """Save a single chat message."""
+        """Save a single chat message.
+
+        Args:
+            session_id: Session identifier
+            role: Message role ('user', 'assistant', 'system')
+            content: Message content
+            agent: Optional agent name
+            metadata: Optional metadata dict
+            timestamp_ms: Optional Unix epoch milliseconds. If not provided,
+                         uses current time. Pass explicit timestamps when saving
+                         multiple messages to ensure correct ordering.
+
+        Returns:
+            The saved message dict including generated fields
+        """
         message_id = uuid4().hex
         # Use Unix epoch milliseconds for sort key (Number type in DynamoDB)
-        timestamp = int(time.time() * 1000)
+        timestamp = timestamp_ms if timestamp_ms is not None else int(time.time() * 1000)
         created_on = datetime.now(UTC).isoformat()
 
         message = {
@@ -81,7 +96,11 @@ class MessageRepository:
         limit: int | None = None,
         ascending: bool = True,
     ) -> list[dict]:
-        """Get all messages for a session, ordered by timestamp."""
+        """Get all messages for a session, ordered by timestamp.
+
+        Note: ScyllaDB Alternator may not reliably honor ScanIndexForward,
+        so we sort in Python to ensure correct ordering.
+        """
         messages = await self._dynamodb.query(
             self.table_name,
             partition_key='session_id',
@@ -91,7 +110,12 @@ class MessageRepository:
         )
 
         # Lazy migration: upgrade schema on read
-        return [SchemaEvolution.migrate_message(m) for m in messages]
+        migrated = [SchemaEvolution.migrate_message(m) for m in messages]
+
+        # Sort in Python to ensure correct order (ScyllaDB Alternator workaround)
+        migrated.sort(key=lambda m: m.get('timestamp', 0), reverse=not ascending)
+
+        return migrated
 
     async def get_recent_messages(
         self,
@@ -124,11 +148,17 @@ class MessageRepository:
 
         Also updates session metadata.
         """
+        # Generate timestamps with guaranteed ordering (user first, assistant second)
+        base_timestamp = int(time.time() * 1000)
+        user_timestamp = base_timestamp
+        assistant_timestamp = base_timestamp + 1  # 1ms later ensures correct sort order
+
         # Save user message
         await self.save_message(
             session_id=session_id,
             role='user',
             content=user_message,
+            timestamp_ms=user_timestamp,
         )
 
         # Save assistant response
@@ -137,6 +167,7 @@ class MessageRepository:
             role='assistant',
             content=bot_response,
             agent=agent,
+            timestamp_ms=assistant_timestamp,
         )
 
         # Update session timestamps and count

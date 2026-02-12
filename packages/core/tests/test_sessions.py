@@ -2,7 +2,6 @@
 Tests for session management endpoints.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 
 

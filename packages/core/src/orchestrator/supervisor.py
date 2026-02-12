@@ -161,7 +161,7 @@ Analyze this query and decide your response strategy."""
 
         # Get RAG context IMMEDIATELY after process_request (before streaming)
         rag_context = agent.get_last_rag_context()
-        
+
         # Yield RAG context first if available
         if rag_context and hasattr(rag_context, 'documents') and rag_context.documents:
             sources = []
@@ -173,7 +173,7 @@ Analyze this query and decide your response strategy."""
                 if i < len(rag_context.scores):
                     source["score"] = float(rag_context.scores[i])
                 sources.append(source)
-            
+
             logger.info("yielding_rag_context", documents_used=len(rag_context.documents))
             yield {
                 "type": "rag_context",

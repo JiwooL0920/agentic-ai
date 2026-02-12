@@ -118,9 +118,22 @@ class DynamoDBClient:
                     params['ExpressionAttributeValues'][k] = self._serialize_value(v)
 
             try:
+                logger.debug(
+                    "dynamodb_query_params",
+                    table=table_name,
+                    sort_ascending=sort_ascending,
+                    params=params,
+                )
                 response = await client.query(**params)
                 items = response.get('Items', [])
-                return [self._deserialize_item(item) for item in items]
+                result = [self._deserialize_item(item) for item in items]
+                logger.debug(
+                    "dynamodb_query_result",
+                    table=table_name,
+                    count=len(result),
+                    timestamps=[r.get('timestamp') for r in result],
+                )
+                return result
             except (ClientError, BotoCoreError) as e:
                 logger.error("dynamodb_query_error", table=table_name, error=str(e))
                 raise

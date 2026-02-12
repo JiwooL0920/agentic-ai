@@ -230,10 +230,10 @@ async def list_documents(
     try:
         # Get actual documents
         documents = await store.list_documents(scope=scope, limit=limit, offset=offset)
-        
+
         # Get total count
         count = await store.count(scope=scope)
-        
+
         # Convert to response format
         response_docs = [
             DocumentResponse(
@@ -245,9 +245,9 @@ async def list_documents(
             )
             for doc in documents
         ]
-        
+
         logger.info("documents_listed", scope=scope, count=len(response_docs), total=count)
-        
+
     except Exception as e:
         logger.error("list_failed", error=str(e))
         raise HTTPException(

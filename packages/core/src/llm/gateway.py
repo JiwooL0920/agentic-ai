@@ -7,7 +7,7 @@ fallback, metrics tracking, and health checking.
 
 import asyncio
 from collections.abc import AsyncIterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import structlog
@@ -260,7 +260,7 @@ class LLMGateway:
                     )
                     return response
 
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     error_msg = f"Request timed out after {self._config.request_timeout_seconds}s"
                     self._record_failure(provider_name, error_msg)
                     last_error = ProviderError(error_msg, provider_name, retriable=True)

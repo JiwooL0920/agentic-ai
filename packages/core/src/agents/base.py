@@ -282,7 +282,7 @@ class OllamaAgent(Agent):
             self._logger.warning("rag_retrieval_failed", error=str(e))
             self._last_rag_context = None
             return None
-    
+
     def get_last_rag_context(self) -> Any | None:
         """Get the RAG context from the last request."""
         return self._last_rag_context

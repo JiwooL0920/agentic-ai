@@ -41,7 +41,7 @@ test.describe('Document List and Enhanced Search', () => {
     await expect(searchInput).toBeVisible();
 
     // Verify it has larger styling (h-12 class should make it bigger)
-    const inputHeight = await searchInput.evaluate(el => el.offsetHeight);
+    const inputHeight = await searchInput.evaluate(el => (el as HTMLElement).offsetHeight);
     expect(inputHeight).toBeGreaterThanOrEqual(48); // h-12 = 3rem = 48px
 
     // Verify search button has text label

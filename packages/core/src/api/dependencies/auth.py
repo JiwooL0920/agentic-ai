@@ -13,6 +13,7 @@ class User:
 
 async def get_current_user(
     authorization: Annotated[str | None, Header()] = None,
+    x_user_id: Annotated[str | None, Header(alias="X-User-Id")] = None,
 ) -> User:
     if authorization and authorization.startswith("Bearer "):
         token = authorization[7:]
@@ -23,6 +24,9 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
         return User(user_id=f"user_{token[:8]}", email=None)
+
+    if x_user_id:
+        return User(user_id=x_user_id, email=None)
 
     return User(user_id="anonymous", email=None)
 

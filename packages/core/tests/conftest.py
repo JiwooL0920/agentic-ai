@@ -2,16 +2,15 @@
 Pytest configuration and fixtures for agentic-core tests.
 """
 
+# Add src to path for imports
+import sys
+from collections.abc import AsyncIterator, Generator
 from pathlib import Path
-from typing import AsyncIterator, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
-
-# Add src to path for imports
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -35,24 +34,22 @@ def mock_ollama_client() -> Generator[MagicMock, None, None]:
 @pytest.fixture
 def mock_redis() -> Generator[dict, None, None]:
     """Mock Redis client for tests."""
-    with patch("src.cache.redis_client.init_redis", new_callable=AsyncMock) as init_mock:
-        with patch(
-            "src.cache.redis_client.close_redis", new_callable=AsyncMock
-        ) as close_mock:
-            with patch(
-                "src.cache.redis_client.get_redis_client"
-            ) as get_mock:
-                redis_mock = MagicMock()
-                # Session caching methods
-                redis_mock.get_cached_session = AsyncMock(return_value=None)
-                redis_mock.cache_session = AsyncMock()
-                redis_mock.invalidate_session = AsyncMock()
-                # User sessions caching methods
-                redis_mock.get_cached_user_sessions = AsyncMock(return_value=None)
-                redis_mock.cache_user_sessions = AsyncMock()
-                redis_mock.invalidate_user_sessions = AsyncMock()
-                get_mock.return_value = redis_mock
-                yield {"init": init_mock, "close": close_mock, "get": get_mock}
+    with patch("src.cache.redis_client.init_redis", new_callable=AsyncMock) as init_mock, patch(
+        "src.cache.redis_client.close_redis", new_callable=AsyncMock
+    ) as close_mock, patch(
+        "src.cache.redis_client.get_redis_client"
+    ) as get_mock:
+        redis_mock = MagicMock()
+        # Session caching methods
+        redis_mock.get_cached_session = AsyncMock(return_value=None)
+        redis_mock.cache_session = AsyncMock()
+        redis_mock.invalidate_session = AsyncMock()
+        # User sessions caching methods
+        redis_mock.get_cached_user_sessions = AsyncMock(return_value=None)
+        redis_mock.cache_user_sessions = AsyncMock()
+        redis_mock.invalidate_user_sessions = AsyncMock()
+        get_mock.return_value = redis_mock
+        yield {"init": init_mock, "close": close_mock, "get": get_mock}
 
 
 @pytest.fixture

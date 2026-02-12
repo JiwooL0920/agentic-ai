@@ -4,7 +4,6 @@ Tests for health check endpoints.
 These are smoke tests to verify basic API functionality.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -37,7 +36,7 @@ class TestHealthEndpoints:
         response = test_app.get("/health/detailed")
         assert response.status_code == 200
         data = response.json()
-        
+
         # Should have api and ollama status
         assert "api" in data
         assert data["api"]["status"] == "healthy"

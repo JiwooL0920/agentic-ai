@@ -2,7 +2,6 @@
 Tests for blueprint management endpoints.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -14,7 +13,7 @@ class TestBlueprintEndpoints:
         response = test_app.get("/api/blueprints")
         assert response.status_code == 200
         data = response.json()
-        
+
         # Endpoint returns list of blueprint name strings
         assert isinstance(data, list)
         assert "test-blueprint" in data
@@ -24,7 +23,7 @@ class TestBlueprintEndpoints:
         response = test_app.get("/api/blueprints/test-blueprint")
         assert response.status_code == 200
         data = response.json()
-        
+
         # name is title-cased, slug is the original identifier
         assert data["slug"] == "test-blueprint"
         assert "agents" in data
@@ -40,7 +39,7 @@ class TestBlueprintEndpoints:
         response = test_app.get("/api/blueprints/test-blueprint/agents/status")
         assert response.status_code == 200
         data = response.json()
-        
+
         assert "agents" in data
         assert "total_count" in data
         assert isinstance(data["agents"], list)

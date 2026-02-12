@@ -10,6 +10,7 @@ from ...schemas import (
     UpdateSessionTitleRequest,
 )
 from ...services.session_service import SessionService
+from ..dependencies import CurrentUser
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -28,17 +29,17 @@ async def get_new_session_id():
 @router.post("/blueprints/{blueprint}/sessions")
 async def create_session(
     blueprint: str,
-    user_id: str = "user",  # TODO: Extract from auth
+    user: CurrentUser,
 ):
     """Create a new chat session."""
     service = SessionService(blueprint)
-    return await service.create_session(user_id=user_id)
+    return await service.create_session(user_id=user.user_id)
 
 
 @router.get("/blueprints/{blueprint}/sessions", response_model=SessionListResponse)
 async def get_user_sessions(
     blueprint: str,
-    user_id: str = "user",  # TODO: Extract from auth
+    user: CurrentUser,
     include_archived: bool = False,
 ):
     """
@@ -48,7 +49,7 @@ async def get_user_sessions(
     """
     service = SessionService(blueprint)
     result = await service.get_user_sessions(
-        user_id=user_id,
+        user_id=user.user_id,
         include_archived=include_archived,
     )
     return SessionListResponse(**result)
@@ -80,7 +81,7 @@ async def update_session_state(
     blueprint: str,
     session_id: str,
     body: UpdateSessionStateRequest,
-    user_id: str = "user",  # TODO: Extract from auth
+    user: CurrentUser,
 ):
     """
     Update session state (pin/unpin/archive).
@@ -92,7 +93,7 @@ async def update_session_state(
     try:
         return await service.update_state(
             session_id=session_id,
-            user_id=user_id,
+            user_id=user.user_id,
             state=body.state,
         )
     except ValueError as e:

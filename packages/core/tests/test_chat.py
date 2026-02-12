@@ -4,9 +4,7 @@ Tests for chat endpoints.
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
 
 
 class TestChatEndpoints:
@@ -31,7 +29,7 @@ class TestChatEndpoints:
                 "/api/blueprints/test-blueprint/chat",
                 json=sample_chat_request,
             )
-            
+
             # Should either succeed or fail gracefully
             assert response.status_code in [200, 500]
 
@@ -67,12 +65,12 @@ class TestChatStreamEndpoints:
     ) -> None:
         """Test streaming chat returns SSE response."""
         stream_request = {**sample_chat_request, "stream": True}
-        
+
         with patch("src.orchestrator.supervisor.SupervisorOrchestrator") as mock_orch:
             async def mock_stream():
                 yield {"content": "Hello"}
                 yield {"content": " world"}
-            
+
             mock_instance = MagicMock()
             mock_instance.process_stream = mock_stream
             mock_orch.return_value = mock_instance
@@ -81,7 +79,7 @@ class TestChatStreamEndpoints:
                 "/api/blueprints/test-blueprint/chat/stream",
                 json=stream_request,
             )
-            
+
             # Stream endpoint should return 200 with event-stream content type
             # or fail gracefully
             assert response.status_code in [200, 500]
@@ -137,14 +135,14 @@ class TestChatCancellation:
         response = test_app.post(
             "/api/blueprints/test-blueprint/sessions/test-session-xyz/cancel"
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Verify response has correct structure
         assert "status" in data
         assert "session_id" in data
         assert data["session_id"] == "test-session-xyz"
-        
+
         # For non-existent task, should return not_found
         assert data["status"] in ["not_found", "cancelled"]

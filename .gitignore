@@ -201,3 +201,10 @@ site/
 
 # Keep .ai/ internal manifest out of version control
 .ai/.lnai-manifest.json
+
+# lnai-generated
+.agents/skills/auto-memory
+.cursor/skills/auto-memory
+AGENTS.md
+opencode.json
+# end lnai-generated

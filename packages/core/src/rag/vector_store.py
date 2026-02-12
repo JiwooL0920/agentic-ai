@@ -554,7 +554,7 @@ class PgVectorStore:
                 if isinstance(metadata, str):
                     import json
                     metadata = json.loads(metadata)
-                
+
                 doc = Document(
                     id=str(row["id"]),  # Convert UUID to string
                     content=row["content"],

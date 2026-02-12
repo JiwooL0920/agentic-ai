@@ -97,10 +97,23 @@ class SessionService:
             self._logger.warning("redis_cache_error", error=str(e))
 
         # Query ScyllaDB
-        sessions = await self._session_repo.get_user_sessions(
+        raw_sessions = await self._session_repo.get_user_sessions(
             user_id=user_id,
             include_archived=include_archived,
         )
+
+        # Map field names for frontend compatibility
+        sessions = [
+            {
+                "session_id": s.get("session_id"),
+                "title": s.get("session_title"),
+                "session_state": s.get("session_state", "active"),
+                "message_count": s.get("message_count", 0),
+                "created_on": s.get("created_on", ""),
+                "modified_on": s.get("modified_on", ""),
+            }
+            for s in raw_sessions
+        ]
 
         # Cache for sidebar (5 minutes)
         if sessions and not include_archived:

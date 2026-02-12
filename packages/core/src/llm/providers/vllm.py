@@ -245,7 +245,7 @@ class VLLMProvider(LLMProvider):
                     base_info["available_models"] = [
                         m.get("id") for m in models_data.get("data", [])
                     ]
-            except Exception:
-                pass
+            except Exception as e:
+                self._logger.debug("failed_to_get_models", error=str(e))
 
         return base_info
