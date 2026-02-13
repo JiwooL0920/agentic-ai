@@ -55,6 +55,8 @@ export function useChat({ blueprint, initialSessionId, onSessionCreated }: UseCh
   const abortControllerRef = useRef<AbortController | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hydratedSessionRef = useRef<string | null>(null);
+  // Track sessions we created locally (to avoid hydrating them and overwriting streaming content)
+  const locallyCreatedSessionsRef = useRef<Set<string>>(new Set());
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -69,6 +71,7 @@ export function useChat({ blueprint, initialSessionId, onSessionCreated }: UseCh
     if (!initialSessionId) {
       setMessages([]);
       setSessionId(null);
+      setIsLoading(false);
       hydratedSessionRef.current = null;
       return;
     }
@@ -77,6 +80,16 @@ export function useChat({ blueprint, initialSessionId, onSessionCreated }: UseCh
     if (hydratedSessionRef.current === initialSessionId) {
       return;
     }
+
+    // Skip hydration for sessions we created locally ONLY if we're currently on that session
+    // (meaning we're still streaming to it). If we navigated away and back, we need to hydrate.
+    if (locallyCreatedSessionsRef.current.has(initialSessionId) && sessionId === initialSessionId) {
+      hydratedSessionRef.current = initialSessionId;
+      return;
+    }
+
+    // Clear locally created flag for sessions we're navigating to (streaming is done)
+    locallyCreatedSessionsRef.current.delete(initialSessionId);
 
     const hydrateSession = async () => {
       setIsHydrating(true);
@@ -214,6 +227,7 @@ export function useChat({ blueprint, initialSessionId, onSessionCreated }: UseCh
                 if (data.type === 'metadata') {
                   assistantMessage.agent = data.agent;
                   if (data.session_id) {
+                    locallyCreatedSessionsRef.current.add(data.session_id);
                     setSessionId(data.session_id);
                     if (!initialSessionId) {
                       notifySessionCreated(data.session_id);

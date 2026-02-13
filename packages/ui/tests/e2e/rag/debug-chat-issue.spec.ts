@@ -20,7 +20,7 @@ test.describe('Debug Chat Issue', () => {
 
     // Step 2: Test semantic search
     console.log('Step 2: Testing semantic search...');
-    const searchInput = page.getByPlaceholder(/search your knowledge base/i);
+    const searchInput = page.getByPlaceholder(/ask a question about your documents/i);
     await searchInput.fill('kubernetes deployment');
     await page.getByRole('button', { name: /search/i }).click();
     
@@ -74,7 +74,7 @@ test.describe('Debug Chat Issue', () => {
   });
 
   test('check chat API endpoint directly', async ({ page, request }) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     
     console.log('Testing chat API endpoint directly...');
     

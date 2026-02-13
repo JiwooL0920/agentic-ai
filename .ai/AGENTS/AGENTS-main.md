@@ -4,30 +4,43 @@
 Main development branch
 
 ## Current Progress
-- 0
-0 commit(s) since main branch
+- 0 commit(s) since main branch
 - Working on files across the staged changes below
 
 ## Recent Changes
 ```
-refactor: e2e eval
+feat: add branch context auto-generation on git commit
+
+- Add pre-commit hook that generates .ai/AGENTS/AGENTS-<branch>.md
 ```
 
 ## Files Modified
-- .ai/AGENTS.md
-- .ai/AGENTS/AGENTS-main.md
-- .ai/prompts/branch-context.md
-- .ai/skills/auto-memory/SKILL.md
-- .husky/pre-commit
+- .husky/post-merge
+- packages/ui/hooks/useChat.ts
+- packages/ui/tests/e2e/conversation-memory/conversation-memory.spec.ts
+- packages/ui/tests/e2e/rag/chat-with-rag.spec.ts
+- packages/ui/tests/e2e/rag/complete-rag-flow.spec.ts
+- packages/ui/tests/e2e/rag/debug-chat-issue.spec.ts
+- packages/ui/tests/e2e/rag/document-list-and-search.spec.ts
+- packages/ui/tests/e2e/rag/document-upload.spec.ts
+- packages/ui/tests/e2e/rag/scope-management.spec.ts
+- packages/ui/tests/e2e/rag/semantic-search.spec.ts
+- packages/ui/tests/e2e/rag/simple-chat-test.spec.ts
 
 ## Changes Summary
 ```
- .ai/AGENTS.md                   |  26 +++++++++++
- .ai/AGENTS/AGENTS-main.md       |  46 ++++++++++++++++++
- .ai/prompts/branch-context.md   |  88 ++++++++++++++++++++++++++++++++++
- .ai/skills/auto-memory/SKILL.md |  62 ++++++++++++++++++++++++
- .husky/pre-commit               | 101 ++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 323 insertions(+)
+ .husky/post-merge                                  |  0
+ packages/ui/hooks/useChat.ts                       | 14 +++
+ .../conversation-memory.spec.ts                    | 30 ++++---
+ packages/ui/tests/e2e/rag/chat-with-rag.spec.ts    | 36 ++++----
+ .../ui/tests/e2e/rag/complete-rag-flow.spec.ts     |  2 +-
+ packages/ui/tests/e2e/rag/debug-chat-issue.spec.ts |  4 +-
+ .../tests/e2e/rag/document-list-and-search.spec.ts | 54 +++---------
+ packages/ui/tests/e2e/rag/document-upload.spec.ts  |  9 +-
+ packages/ui/tests/e2e/rag/scope-management.spec.ts |  7 +-
+ packages/ui/tests/e2e/rag/semantic-search.spec.ts  | 99 ++++++++++++----------
+ packages/ui/tests/e2e/rag/simple-chat-test.spec.ts | 42 +++++----
+ 11 files changed, 150 insertions(+), 147 deletions(-)
 ```
 
 ## Branch Commits (since main)
@@ -43,4 +56,4 @@ Refer to commit messages and modified files for context on ongoing work.
 - Updates on each commit to track branch progress
 
 ---
-*Last updated: 2026-02-13 01:08:53 UTC*
+*Last updated: 2026-02-13 01:38:49 UTC*

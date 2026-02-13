@@ -45,7 +45,7 @@ test.describe('Complete RAG Flow - End to End', () => {
     await page.waitForTimeout(2000);
 
     // Check if document appears in list
-    const docExists = await page.getByText('test-document.md').isVisible();
+    const docExists = await page.getByText('test-document.md', { exact: true }).first().isVisible();
     console.log(docExists ? '✓ Document appears in list' : '❌ Document not visible in list');
 
     console.log('\n=== STEP 3: Navigate to Chat ===');

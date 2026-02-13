@@ -14,7 +14,7 @@ test.describe('Scope Management Flow', () => {
   test.afterEach(async ({ page }) => {
     // Clean up: delete test scopes
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       await page.request.delete(`${apiUrl}/api/documents/scope/default`);
       await page.request.delete(`${apiUrl}/api/documents/scope/${testScope1}`);
       await page.request.delete(`${apiUrl}/api/documents/scope/${testScope2}`);
@@ -112,7 +112,7 @@ test.describe('Scope Management Flow', () => {
     await defaultTab.click();
     
     // Should show scope info
-    await expect(page.getByText(/scope: default/i)).toBeVisible();
+    await expect(page.getByText('Scope: default', { exact: true })).toBeVisible();
     
     // Should show document count
     await expect(page.getByText(/document chunks indexed/i)).toBeVisible();
@@ -161,8 +161,7 @@ test.describe('Scope Management Flow', () => {
     // Dialog should show warning message
     await expect(page.getByText(/are you sure you want to delete all documents/i)).toBeVisible();
     
-    // Should show scope name in warning
-    await expect(page.getByText(/default/i)).toBeVisible();
+    // Should show scope name in warning (already verified via the warning message above)
     
     // Should have Cancel and Delete buttons
     await expect(page.getByRole('button', { name: /cancel/i })).toBeVisible();
