@@ -573,4 +573,30 @@ The agent configuration is managed by the orchestration system you're using (e.g
 
 ---
 
+## Branch-Specific Context
+
+For detailed context on active development branches, see files in `.ai/AGENTS/`:
+
+- Each file follows naming: `AGENTS-<branch-name>.md`
+- **Auto-generated** on each commit via pre-commit hook
+- Contains: branch purpose, progress, recent changes, files modified, next steps
+- Provides instant context for AI agents working on feature branches
+
+### How It Works
+
+The `.husky/pre-commit` hook automatically:
+1. Detects the current branch
+2. Gathers staged changes and commit history
+3. Generates AI-powered context summary via `opencode`
+4. Saves to `.ai/AGENTS/AGENTS-<branch>.md`
+
+### Skip Generation
+
+```bash
+# Skip for a single commit
+SKIP_BRANCH_CONTEXT=1 git commit -m "quick fix"
+```
+
+---
+
 **Generated for agentic AI systems.** Follow these patterns to maintain consistency and quality across the codebase.

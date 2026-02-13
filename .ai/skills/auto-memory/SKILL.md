@@ -163,3 +163,65 @@ Return a brief summary:
 - `/auto-memory:init` - Initialize AGENTS.md with auto-managed markers
 - `/auto-memory:sync` - Sync AGENTS.md with recent git changes
 - `/auto-memory:status` - Show sync status and pending changes
+
+---
+
+## Branch Context Auto-Generation
+
+In addition to manual AGENTS.md updates, this project has **automatic branch context generation** via a pre-commit hook.
+
+### How It Works
+
+On every `git commit`, the `.husky/pre-commit` hook:
+
+1. Detects the current branch name
+2. Gathers staged files, diff stats, and commit history
+3. Calls `opencode` to generate an AI summary
+4. Creates/updates `.ai/AGENTS/AGENTS-<branch>.md`
+5. Auto-stages the context file so it's included in the commit
+
+### Generated Files Location
+
+```
+.ai/AGENTS/
+├── AGENTS-main.md           # Main branch context
+├── AGENTS-feature-auth.md   # Feature branch context
+├── AGENTS-fix-memory-leak.md
+└── ...
+```
+
+### Skip Conditions
+
+The hook skips generation when:
+- `SKIP_BRANCH_CONTEXT=1` environment variable is set
+- `CI=1` (running in CI/CD)
+- No staged files
+- Detached HEAD state
+- `opencode` CLI not available (falls back to minimal template)
+
+### Manual Override
+
+```bash
+# Skip for a single commit
+SKIP_BRANCH_CONTEXT=1 git commit -m "quick fix"
+
+# Generate context manually
+opencode -p "Generate branch context for $(git branch --show-current)"
+```
+
+### Prompt Template
+
+The prompt for context generation is at `.ai/prompts/branch-context.md`. Modify it to change what information is captured.
+
+### Integration with AGENTS.md
+
+The root `.ai/AGENTS.md` should reference branch context files:
+
+```markdown
+## Branch-Specific Context
+
+For detailed context on active development branches, see files in `.ai/AGENTS/`:
+- Each file follows naming: `AGENTS-<branch-name>.md`
+- Auto-generated on each commit via pre-commit hook
+- Contains: branch purpose, progress, recent changes, files modified, next steps
+```
