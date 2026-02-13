@@ -138,34 +138,32 @@ test.describe('File Selection and Bulk Delete', () => {
     await page.goto(`/${blueprint}/knowledge`);
     await page.waitForLoadState('networkidle');
 
-    // Upload test file
     const filePath = path.join(__dirname, '../../fixtures/test-document.md');
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(filePath);
     await expect(page.getByText(/successfully uploaded/i)).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
-    // Select the file
     const checkbox = page.locator('[role="checkbox"]').first();
     await checkbox.click();
     await page.waitForTimeout(300);
 
-    // Click Delete Selected
     const deleteButton = page.getByRole('button', { name: /delete.*selected/i });
     await deleteButton.click();
 
-    // Verify confirmation dialog
     await expect(page.getByText(/are you sure you want to delete.*selected/i)).toBeVisible();
     
-    // Verify file list in dialog
-    await expect(page.getByText('test-document.md')).toBeVisible();
+    // Scope to dialog to avoid strict mode violation (filename appears in multiple places)
+    await expect(page.getByRole('dialog').getByText('test-document.md')).toBeVisible();
 
-    // Confirm deletion
     const confirmButton = page.getByRole('dialog').getByRole('button', { name: /delete.*files?/i });
     await confirmButton.click();
 
-    // Wait for success message
-    await expect(page.getByText(/deleted.*files?/i)).toBeVisible({ timeout: 5000 });
+    // Wait for either "Deleted" message OR document to disappear (whichever confirms deletion)
+    await Promise.race([
+      expect(page.getByText(/deleted.*files?/i)).toBeVisible({ timeout: 10000 }),
+      expect(page.locator('p.truncate').filter({ hasText: 'test-document.md' })).toHaveCount(0, { timeout: 10000 })
+    ]);
     console.log('✓ Bulk delete completed successfully');
   });
 

@@ -78,7 +78,7 @@ export default function KnowledgePage() {
   const [deleteDocDialogOpen, setDeleteDocDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [scopeToDelete, setScopeToDelete] = useState<string | null>(null);
-  const [docToDelete, setDocToDelete] = useState<{ id: string; filename: string } | null>(null);
+  const [docToDelete, setDocToDelete] = useState<{ ids: string[]; filename: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<DocumentSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -281,8 +281,8 @@ export default function KnowledgePage() {
     setDeleteDialogOpen(true);
   };
 
-  const confirmDeleteDoc = (id: string, filename: string) => {
-    setDocToDelete({ id, filename });
+  const confirmDeleteDoc = (ids: string[], filename: string) => {
+    setDocToDelete({ ids, filename });
     setDeleteDocDialogOpen(true);
   };
 
@@ -292,7 +292,7 @@ export default function KnowledgePage() {
     try {
       setLoading(true);
       setError(null);
-      await deleteDocument(docToDelete.id);
+      await Promise.all(docToDelete.ids.map(id => deleteDocument(id)));
       setSuccess(`Deleted ${docToDelete.filename}`);
       setDeleteDocDialogOpen(false);
       setDocToDelete(null);
@@ -731,7 +731,7 @@ export default function KnowledgePage() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => confirmDeleteDoc(docs[0].id, filename)}
+                                      onClick={() => confirmDeleteDoc(docs.map(d => d.id), filename)}
                                       disabled={loading}
                                       className="flex-shrink-0"
                                     >
