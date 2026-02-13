@@ -250,7 +250,7 @@ export function useChat({ blueprint, initialSessionId, onSessionCreated }: UseCh
                       m.id === assistantMessage.id ? { ...assistantMessage } : m
                     )
                   );
-                } else if (data.type === 'rag_sources' && data.sources) {
+                } else if (data.type === 'rag_context' && data.sources) {
                   // Handle RAG sources
                   assistantMessage.ragSources = data.sources;
                   assistantMessage.documentsUsed = data.sources.length;
